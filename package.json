@@ -2,11 +2,12 @@
   "name": "carnet-sante-frontend",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
-    "type-check": "tsc --noEmit"
-  },
+  "prebuild": "chmod +x node_modules/.bin/vite",
+  "dev": "vite",
+  "build": "tsc && vite build",
+  "preview": "vite preview",
+  "type-check": "tsc --noEmit"
+},
   "dependencies": {
     "@reduxjs/toolkit": "^2.9.0",
     "axios": "^1.12.2",
