@@ -1,3 +1,4 @@
+// Utilisateur générique
 export interface User {
   id: string
   email: string
@@ -16,6 +17,7 @@ export interface User {
   updatedAt: string
 }
 
+// Médecin
 export interface Doctor extends User {
   specialization: string
   licenseNumber: string
@@ -27,13 +29,15 @@ export interface Doctor extends User {
   totalReviews?: number
 }
 
+// Disponibilité du médecin
 export interface DoctorAvailability {
-  dayOfWeek: number
-  startTime: string
-  endTime: string
+  dayOfWeek: number // 0 = dimanche, 6 = samedi
+  startTime: string // ex: "09:00"
+  endTime: string   // ex: "17:00"
   isAvailable: boolean
 }
 
+// Patient
 export interface Patient extends User {
   bloodType?: string
   height?: number
@@ -41,10 +45,12 @@ export interface Patient extends User {
   emergencyContact?: EmergencyContact
 }
 
+// Contact d'urgence
 export interface EmergencyContact {
   name: string
   phoneNumber: string
   relationship: string
 }
 
-export interface UserProfile extends Patient, Doctor {}
+// ✅ Corrigé : UserProfile est soit un Patient, soit un Doctor
+export type UserProfile = Patient | Doctor

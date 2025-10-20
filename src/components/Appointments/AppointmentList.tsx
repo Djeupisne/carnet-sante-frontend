@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Calendar, Clock, User, FileText, ChevronRight, Plus, Loader, Stethoscope, MapPin, Sparkles } from 'lucide-react'
+import { Calendar, Clock, User, FileText, ChevronRight, Plus, Loader, Stethoscope, Sparkles } from 'lucide-react'
 import { Appointment } from '../../types/appointment'
 import { appointmentService } from '../../services/appointmentService'
 import { useNotification } from '../../context/NotificationContext'
@@ -19,17 +19,8 @@ const AppointmentList: React.FC = () => {
   const loadAppointments = async () => {
     try {
       setIsLoading(true)
-      const data = await appointmentService.getAppointments()
-
-      if (Array.isArray(data)) {
-        setAppointments(data)
-      } else if (data?.appointments && Array.isArray(data.appointments)) {
-        setAppointments(data.appointments)
-      } else if (data?.data && Array.isArray(data.data)) {
-        setAppointments(data.data)
-      } else {
-        setAppointments([])
-      }
+      const response = await appointmentService.getAppointments()
+      setAppointments(Array.isArray(response) ? response : [])
     } catch (error) {
       console.error('Erreur lors du chargement:', error)
       showNotification('Erreur lors du chargement des rendez-vous', 'error')
@@ -54,21 +45,22 @@ const AppointmentList: React.FC = () => {
     }
   }
 
-  const filteredAppointments = Array.isArray(appointments) 
-    ? appointments.filter(apt => {
-        const now = new Date()
-        const appointmentDate = new Date(`${apt.date}T${apt.startTime}`)
-        
-        switch (filter) {
-          case 'upcoming':
-            return appointmentDate >= now && apt.status !== 'cancelled'
-          case 'past':
-            return appointmentDate < now || apt.status === 'cancelled' || apt.status === 'completed'
-          default:
-            return true
-        }
-      })
-    : []
+  const filteredAppointments = appointments.filter(apt => {
+    const now = new Date()
+    // CORRECTION : appointmentDate au lieu de date et startTime
+    if (!apt.appointmentDate) return false
+    
+    const appointmentDate = new Date(apt.appointmentDate)
+    
+    switch (filter) {
+      case 'upcoming':
+        return appointmentDate >= now && apt.status !== 'cancelled'
+      case 'past':
+        return appointmentDate < now || apt.status === 'cancelled' || apt.status === 'completed'
+      default:
+        return true
+    }
+  })
 
   const getStatusVariant = (status: string) => {
     const variants = {
@@ -79,7 +71,7 @@ const AppointmentList: React.FC = () => {
         text: 'text-emerald-700',
         badge: 'bg-emerald-100 text-emerald-700'
       },
-      scheduled: { 
+      pending: { 
         gradient: 'from-cyan-400 to-blue-500',
         light: 'from-cyan-50 to-blue-50',
         border: 'border-cyan-200',
@@ -108,13 +100,13 @@ const AppointmentList: React.FC = () => {
         badge: 'bg-amber-100 text-amber-700'
       },
     }
-    return variants[status as keyof typeof variants] || variants.scheduled
+    return variants[status as keyof typeof variants] || variants.pending
   }
 
   const getStatusText = (status: string) => {
     const texts = {
       confirmed: 'Confirmé',
-      scheduled: 'Planifié',
+      pending: 'En attente',
       completed: 'Terminé',
       cancelled: 'Annulé',
       no_show: 'Non honoré',
@@ -124,18 +116,34 @@ const AppointmentList: React.FC = () => {
 
   const getTypeText = (type: string) => {
     const types = {
-      consultation: 'Consultation',
-      follow_up: 'Suivi',
-      emergency: 'Urgence',
-      routine: 'Routine',
+      in_person: 'En personne',
+      teleconsultation: 'Téléconsultation',
+      home_visit: 'Visite à domicile',
     }
     return types[type as keyof typeof types] || type
+  }
+
+  const formatTime = (dateString: string): string => {
+    try {
+      const date = new Date(dateString)
+      return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+    } catch {
+      return 'N/A'
+    }
+  }
+
+  const formatDate = (dateString: string): string => {
+    try {
+      const date = new Date(dateString)
+      return date.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+    } catch {
+      return 'N/A'
+    }
   }
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-indigo-900">
-        {/* Fond animé */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-cyan-500/10 to-transparent rounded-full blur-3xl animate-pulse"></div>
           <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-br from-purple-500/10 to-transparent rounded-full blur-3xl animate-pulse animation-delay-2000"></div>
@@ -311,8 +319,6 @@ const AppointmentList: React.FC = () => {
             <div className="grid gap-5">
               {filteredAppointments.map((appointment) => {
                 const statusVar = getStatusVariant(appointment.status)
-                const appointmentDate = new Date(appointment.date)
-                const isUpcoming = new Date(`${appointment.date}T${appointment.startTime}`) >= new Date()
                 
                 return (
                   <div
@@ -350,7 +356,7 @@ const AppointmentList: React.FC = () => {
                                 <h3 className="text-xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
                                   Dr. {appointment.doctor.firstName} {appointment.doctor.lastName}
                                 </h3>
-                                <p className="text-white/60 text-sm font-medium">{appointment.doctor.specialization}</p>
+                                <p className="text-white/60 text-sm font-medium">{appointment.doctor.specialty}</p>
                               </div>
                             </div>
 
@@ -370,11 +376,11 @@ const AppointmentList: React.FC = () => {
                               <div className="space-y-3">
                                 <div className="flex items-center gap-3 text-white/80">
                                   <Calendar className="w-5 h-5 text-cyan-400 flex-shrink-0" />
-                                  <span className="font-semibold">{appointmentDate.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                                  <span className="font-semibold">{formatDate(appointment.appointmentDate)}</span>
                                 </div>
                                 <div className="flex items-center gap-3 text-white/80">
                                   <Clock className="w-5 h-5 text-purple-400 flex-shrink-0" />
-                                  <span className="font-semibold">{appointment.startTime} - {appointment.endTime}</span>
+                                  <span className="font-semibold">{formatTime(appointment.appointmentDate)} (durée: {appointment.duration}min)</span>
                                 </div>
                               </div>
                               <div className="space-y-3">
@@ -404,7 +410,7 @@ const AppointmentList: React.FC = () => {
                                 <ChevronRight className="w-4 h-4 inline group-hover/link:translate-x-1 transition-transform" />
                               </div>
                             </Link>
-                            {(appointment.status === 'scheduled' || appointment.status === 'confirmed') && (
+                            {(appointment.status === 'confirmed' || appointment.status === 'pending') && (
                               <button
                                 onClick={() => handleCancelAppointment(appointment.id)}
                                 className="group/cancel relative inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-white overflow-hidden"

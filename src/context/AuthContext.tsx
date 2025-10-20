@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react'
 import { authService, LoginData, RegisterData } from '../services/authService'
 
-interface User {
+export interface User {
   id: string
   uniqueCode: string
   email: string
@@ -32,7 +32,7 @@ type AuthAction =
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'LOGOUT' }
 
-interface AuthContextType extends AuthState {
+export interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>
   register: (userData: RegisterData) => Promise<void>
   logout: () => void
@@ -47,25 +47,25 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
     case 'SET_LOADING':
       return { ...state, isLoading: action.payload }
     case 'SET_USER':
-      return { 
-        ...state, 
-        user: action.payload, 
+      return {
+        ...state,
+        user: action.payload,
         isAuthenticated: !!action.payload,
         isLoading: false,
-        error: null
+        error: null,
       }
     case 'SET_ERROR':
       return {
         ...state,
         error: action.payload,
-        isLoading: false
+        isLoading: false,
       }
     case 'LOGOUT':
-      return { 
-        user: null, 
-        isAuthenticated: false, 
+      return {
+        user: null,
+        isAuthenticated: false,
         isLoading: false,
-        error: null
+        error: null,
       }
     default:
       return state
@@ -76,7 +76,7 @@ const initialState: AuthState = {
   user: null,
   isAuthenticated: false,
   isLoading: true,
-  error: null
+  error: null,
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -111,46 +111,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Appel login...')
       const result = await authService.login({ email, password })
-      
+
       if (!result || !result.user) {
         throw new Error('Réponse invalide du serveur')
       }
 
       const { user, token } = result
-      
+
       // Stocker le token et les données utilisateur
       localStorage.setItem('token', token)
       localStorage.setItem('user', JSON.stringify(user))
-      
+
       dispatch({ type: 'SET_USER', payload: user })
-      
+
       // Notification de succès
       setTimeout(() => {
         const event = new CustomEvent('showNotification', {
-          detail: { 
-            message: `Bienvenue ${user.firstName}!`, 
-            type: 'success' 
-          }
+          detail: {
+            message: `Bienvenue ${user.firstName}!`,
+            type: 'success',
+          },
         })
         window.dispatchEvent(event)
       }, 100)
-      
     } catch (error: any) {
       console.error('Erreur login:', error)
-      
-      const message = error.response?.data?.message || 
-                     error.message || 
-                     'Erreur de connexion'
-      
+
+      const message =
+        error.response?.data?.message || error.message || 'Erreur de connexion'
+
       dispatch({ type: 'SET_ERROR', payload: message })
-      
+
       setTimeout(() => {
         const event = new CustomEvent('showNotification', {
-          detail: { message, type: 'error' }
+          detail: { message, type: 'error' },
         })
         window.dispatchEvent(event)
       }, 100)
-      
+
       throw error
     }
   }
@@ -160,48 +158,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Appel register...')
       const result = await authService.register(userData)
-      
+
       if (!result || !result.user) {
         throw new Error('Réponse invalide du serveur - pas de user')
       }
 
       const { user, token, message } = result
-      
+
       console.log('User reçu:', user)
-      
+
       // Stocker le token et les données utilisateur
       localStorage.setItem('token', token)
       localStorage.setItem('user', JSON.stringify(user))
-      
+
       dispatch({ type: 'SET_USER', payload: user })
-      
+
       // Notification de succès
       setTimeout(() => {
         const event = new CustomEvent('showNotification', {
-          detail: { 
+          detail: {
             message: message || `Compte créé avec succès! Bienvenue ${user.firstName}`,
-            type: 'success' 
-          }
+            type: 'success',
+          },
         })
         window.dispatchEvent(event)
       }, 100)
-      
     } catch (error: any) {
       console.error('Erreur register:', error)
-      
-      const message = error.response?.data?.message || 
-                     error.message || 
-                     "Erreur lors de l'inscription"
-      
+
+      const message =
+        error.response?.data?.message || error.message || "Erreur lors de l'inscription"
+
       dispatch({ type: 'SET_ERROR', payload: message })
-      
+
       setTimeout(() => {
         const event = new CustomEvent('showNotification', {
-          detail: { message, type: 'error' }
+          detail: { message, type: 'error' },
         })
         window.dispatchEvent(event)
       }, 100)
-      
+
       throw error
     }
   }
@@ -211,15 +207,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     dispatch({ type: 'LOGOUT' })
-    
+
     // Appeler l'API de déconnexion
     authService.logout().catch((error) => {
       console.warn('Erreur logout API:', error)
     })
-    
+
     setTimeout(() => {
       const event = new CustomEvent('showNotification', {
-        detail: { message: 'Déconnexion réussie', type: 'info' }
+        detail: { message: 'Déconnexion réussie', type: 'info' },
       })
       window.dispatchEvent(event)
     }, 100)
@@ -241,7 +237,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     register,
     logout,
     updateUser,
-    clearError
+    clearError,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
@@ -254,3 +250,5 @@ export const useAuth = () => {
   }
   return context
 }
+
+export default AuthContext

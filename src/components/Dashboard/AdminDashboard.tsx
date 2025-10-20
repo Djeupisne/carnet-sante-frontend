@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Calendar, CreditCard, Activity, Trash } from 'lucide-react';
-import { calendarService } from '../services/calendarService';
+import { calendarService } from '../../services/calendarService'
 
 interface Calendar {
   id: string;

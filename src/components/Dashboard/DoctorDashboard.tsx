@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { userService } from '../services/userService';
+import { useAuth } from '../../context/AuthContext';
+import { userService } from '../../services/userService';
 import { Calendar, Users, Clock, DollarSign, X, Check } from 'lucide-react';
 import CalendarManagement from './CalendarManagement';
 
@@ -20,8 +20,19 @@ interface StatCard {
   color: string;
 }
 
+// Étendre l'interface User pour inclure la spécialité
+interface DoctorUser {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: string;
+  specialty?: string;
+}
+
 const DoctorDashboard: React.FC = () => {
   const { user } = useAuth();
+  const doctorUser = user as DoctorUser; // Cast vers le type DoctorUser
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -175,10 +186,10 @@ const DoctorDashboard: React.FC = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">
-          Dr. {user?.firstName} {user?.lastName}
+          Dr. {doctorUser?.firstName} {doctorUser?.lastName}
         </h1>
         <p className="text-gray-600">
-          Tableau de bord médical - {user?.specialty}
+          Tableau de bord médical - {doctorUser?.specialty || 'Médecin'}
         </p>
       </div>
 

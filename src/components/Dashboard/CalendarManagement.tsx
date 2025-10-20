@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { calendarService } from '../services/calendarService';
+import { calendarService } from '../../services/calendarService';
 import { Calendar, Check, Trash, Edit } from 'lucide-react';
 
+// ✅ Interface corrigée : doctor inclut l'id
 interface Calendar {
   id: string;
   date: string;
   slots: string[];
   confirmed: boolean;
-  doctor?: { firstName: string; lastName: string };
+  doctor?: { firstName: string; lastName: string; id: string }; // ← id ajouté
 }
 
 const CalendarManagement: React.FC = () => {
@@ -45,7 +46,19 @@ const CalendarManagement: React.FC = () => {
     try {
       const updatedCalendar = calendars.find((c) => c.id === calendarId);
       if (updatedCalendar) {
-        const response = await calendarService.updateCalendar(calendarId, updatedCalendar);
+        // ✅ Correction : ajout de doctor.id si manquant
+        const safeCalendar: Calendar = {
+          ...updatedCalendar,
+          doctor: updatedCalendar.doctor
+            ? {
+                firstName: updatedCalendar.doctor.firstName,
+                lastName: updatedCalendar.doctor.lastName,
+                id: updatedCalendar.doctor.id || 'unknown-id', // ← à adapter selon ton contexte
+              }
+            : undefined,
+        };
+
+        const response = await calendarService.updateCalendar(calendarId, safeCalendar);
         setCalendars(calendars.map((c) => (c.id === calendarId ? response.data : c)));
         await calendarService.saveCalendarVersion(response.data);
         await calendarService.notifyPatients(response.data);
@@ -93,6 +106,7 @@ const CalendarManagement: React.FC = () => {
       <h3 className="text-lg font-semibold text-gray-900 mb-4">
         Gestion des calendriers
       </h3>
+
       {isCreating ? (
         <div className="mb-4">
           <input
@@ -168,6 +182,7 @@ const CalendarManagement: React.FC = () => {
                 <Trash className="h-5 w-5" />
               </button>
             </div>
+
             {isEditing === calendar.id && (
               <div className="mt-4">
                 <input

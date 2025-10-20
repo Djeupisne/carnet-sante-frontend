@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Doctor, AppointmentSlot, CreateAppointmentData } from '../../types/appointment'
 import { appointmentService } from '../../services/appointmentService'
 import { useNotification } from '../../context/NotificationContext'
-import { Calendar, Clock, User, CheckCircle, ChevronRight, ArrowLeft, Stethoscope, Sparkles, Heart } from 'lucide-react'
+import { Calendar, Clock, User, CheckCircle, ChevronRight, ArrowLeft, Heart } from 'lucide-react'
 
 const BookAppointment: React.FC = () => {
   const navigate = useNavigate()
@@ -20,7 +20,7 @@ const BookAppointment: React.FC = () => {
   })
   const [isLoading, setIsLoading] = useState(false)
   const [step, setStep] = useState(1)
-  const [hoveredDoctorId, setHoveredDoctorId] = useState<string | null>(null)
+  // Commenté car non utilisé : const [hoveredDoctorId, setHoveredDoctorId] = useState<string | null>(null)
 
   useEffect(() => {
     loadDoctors()
@@ -188,8 +188,8 @@ const BookAppointment: React.FC = () => {
                 {doctors.map((doctor) => (
                   <div
                     key={doctor.id}
-                    onMouseEnter={() => setHoveredDoctorId(doctor.id)}
-                    onMouseLeave={() => setHoveredDoctorId(null)}
+                    // Commenté car non utilisé : onMouseEnter={() => setHoveredDoctorId(doctor.id)}
+                    // Commenté car non utilisé : onMouseLeave={() => setHoveredDoctorId(null)}
                     onClick={() => handleDoctorSelect(doctor)}
                     className="group relative cursor-pointer"
                   >
@@ -208,21 +208,22 @@ const BookAppointment: React.FC = () => {
                           <h3 className="text-xl font-bold text-white mb-1">
                             Dr. {doctor.firstName} {doctor.lastName}
                           </h3>
-                          <p className="text-cyan-300 font-semibold text-sm mb-4">{doctor.specialization}</p>
+                          <p className="text-cyan-300 font-semibold text-sm mb-4">{doctor.specialty}</p>
                           
                           <div className="space-y-2 text-sm">
-                            <div className="flex items-center gap-2 text-white/70">
+                            {/* Commenté car non présent dans l'interface Doctor */}
+                            {/* <div className="flex items-center gap-2 text-white/70">
                               <span className="w-1 h-1 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full"></span>
                               <span><strong>{doctor.experience}</strong> ans d'expérience</span>
-                            </div>
+                            </div> */}
                             <div className="flex items-center gap-2 text-white/70">
                               <span className="w-1 h-1 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full"></span>
-                              <span><strong>{doctor.consultationFee}€</strong> la consultation</span>
+                              <span><strong>{doctor.consultationPrice}€</strong> la consultation</span>
                             </div>
                             {doctor.rating && (
                               <div className="flex items-center gap-2 text-white/70">
                                 <span className="w-1 h-1 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full"></span>
-                                <span>⭐ <strong>{doctor.rating}</strong> ({doctor.totalReviews} avis)</span>
+                                <span>⭐ <strong>{doctor.rating}</strong> {/* doctor.totalReviews pas dans l'interface */}</span>
                               </div>
                             )}
                           </div>
@@ -271,7 +272,7 @@ const BookAppointment: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-white">Dr. {selectedDoctor.firstName} {selectedDoctor.lastName}</h3>
-                    <p className="text-cyan-300">{selectedDoctor.specialization}</p>
+                    <p className="text-cyan-300">{selectedDoctor.specialty}</p>
                   </div>
                 </div>
               </div>
@@ -373,7 +374,7 @@ const BookAppointment: React.FC = () => {
                     <div>
                       <p className="text-white/60 text-sm font-semibold mb-1">MÉDECIN</p>
                       <p className="text-xl font-bold text-white">Dr. {selectedDoctor.firstName} {selectedDoctor.lastName}</p>
-                      <p className="text-cyan-300 mt-1">{selectedDoctor.specialization}</p>
+                      <p className="text-cyan-300 mt-1">{selectedDoctor.specialty}</p>
                     </div>
                   </div>
 
@@ -401,7 +402,7 @@ const BookAppointment: React.FC = () => {
 
                   <div className="flex items-center justify-between">
                     <p className="text-white/60">Honoraires de consultation</p>
-                    <p className="text-2xl font-black bg-gradient-to-r from-cyan-300 to-purple-300 bg-clip-text text-transparent">{selectedDoctor.consultationFee}€</p>
+                    <p className="text-2xl font-black bg-gradient-to-r from-cyan-300 to-purple-300 bg-clip-text text-transparent">{selectedDoctor.consultationPrice}€</p>
                   </div>
                 </div>
               </div>
