@@ -13,11 +13,11 @@ const Register: React.FC = () => {
     dateOfBirth: '',
     gender: 'male' as 'male' | 'female' | 'other',
     phoneNumber: '',
-    specialty: '', // Garder specialty pour le formulaire
+    specialty: '',
     licenseNumber: '',
     biography: '',
     languages: [] as string[],
-    bloodType: '' as '' | 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-', // Changer typeBlood en bloodType
+    bloodType: '' as '' | 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-',
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -155,32 +155,34 @@ const Register: React.FC = () => {
     setIsLoading(true)
     
     try {
-      // Préparer les données pour l'API
+      // ✅ CORRIGÉ : Préparer les données pour l'API
       const submitData: any = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email: formData.email.toLowerCase().trim(),
         password: formData.password,
         role: formData.role,
         dateOfBirth: formData.dateOfBirth,
         gender: formData.gender,
-        phoneNumber: formData.phoneNumber || undefined,
-        bloodType: formData.bloodType || undefined,
       }
 
-      // Ajouter les champs spécifiques aux médecins
-      if (formData.role === 'doctor') {
-        submitData.specialty = formData.specialty;
-        submitData.licenseNumber = formData.licenseNumber;
-        submitData.biography = formData.biography;
-        submitData.languages = formData.languages;
-      } else {
-        // Pour les patients, ne pas envoyer les champs médecins
-        submitData.specialty = undefined;
-        submitData.licenseNumber = undefined;
-        submitData.biography = undefined;
-        submitData.languages = undefined;
+      // ✅ CORRIGÉ : Ajouter les champs optionnels seulement s'ils ont une valeur
+      if (formData.phoneNumber.trim()) {
+        submitData.phoneNumber = formData.phoneNumber.trim();
       }
+
+      if (formData.bloodType) {
+        submitData.bloodType = formData.bloodType;
+      }
+
+      // ✅ CORRIGÉ : Pour les médecins, envoyer les champs spécifiques
+      if (formData.role === 'doctor') {
+        submitData.specialty = formData.specialty.trim();
+        submitData.licenseNumber = formData.licenseNumber.trim();
+        submitData.biography = formData.biography.trim();
+        submitData.languages = formData.languages;
+      }
+      // ❌ NE PAS envoyer les champs doctors pour les patients
 
       console.log('🔍 Données envoyées à l\'API:', JSON.stringify(submitData, null, 2));
       console.log('🔍 Langues:', submitData.languages);
@@ -196,8 +198,9 @@ const Register: React.FC = () => {
         const apiErrors = error.response.data.errors
         const fieldErrors: Record<string, string> = {}
         
-        Object.keys(apiErrors).forEach(field => {
-          fieldErrors[field] = apiErrors[field][0]
+        // ✅ CORRIGÉ : Gestion améliorée des erreurs
+        apiErrors.forEach((err: any) => {
+          fieldErrors[err.field] = err.message
         })
         
         setErrors(fieldErrors)
@@ -372,8 +375,8 @@ const Register: React.FC = () => {
                 value={formData.phoneNumber}
                 onChange={handleChange}
                 className={`futuristic-card w-full px-3 py-3 text-white bg-white/5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.phoneNumber ? 'border-red-500/50' : 'border-white/10'
-                }`}
+                    errors.phoneNumber ? 'border-red-500/50' : 'border-white/10'
+                  }`}
                 placeholder="+33 1 23 45 67 89"
               />
               {errors.phoneNumber && (
