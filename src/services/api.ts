@@ -1,16 +1,18 @@
+// ============================================
+// 3. src/services/api.ts - CORRIGÉ (Alternative)
+// ============================================
+
 import axios from 'axios'
+import { API_BASE_URL } from '../utils/constants'
 
-// 🎯 URL ABSOLUE DE PRODUCTION - CORRIGÉE
-const API_BASE_URL = 'https://carnet-sante-backend.onrender.com/api'
-
-console.log('🚀 API configurée pour la production:', API_BASE_URL)
+console.log('🔧 API Service configuré avec URL:', API_BASE_URL)
 
 const api = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000,
 })
 
 // Intercepteur de requêtes
@@ -45,8 +47,10 @@ api.interceptors.response.use(
     })
 
     if (error.response?.status === 401) {
+      console.log('🔒 Session expirée, déconnexion...')
       localStorage.removeItem('token')
       localStorage.removeItem('user')
+      window.location.href = '/login'
     }
 
     return Promise.reject(error)
@@ -54,3 +58,5 @@ api.interceptors.response.use(
 )
 
 export default api
+
+

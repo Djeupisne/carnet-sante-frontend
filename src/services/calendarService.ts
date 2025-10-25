@@ -1,10 +1,9 @@
-
-
-/** ============================================
- * src/services/calendarService.ts - CORRIGÉ (compatible avec votre implémentation)
- * ============================================ */
+// ============================================
+// 4. src/services/calendarService.ts - CORRIGÉ
+// ============================================
 
 import axios from 'axios'
+import { API_BASE_URL } from '../utils/constants'
 
 // Interface pour la structure d'un calendrier
 interface Calendar {
@@ -15,12 +14,10 @@ interface Calendar {
   doctor?: { firstName: string; lastName: string; id: string }
 }
 
-// URL de base de l'API
-const API_BASE_URL = 'http://localhost:3001/api'
-
 // Configuration d'axios avec l'intercepteur pour ajouter le token d'authentification
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -33,9 +30,28 @@ axiosInstance.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    console.log(`📤 Calendar API: ${config.method?.toUpperCase()} ${config.url}`)
     return config
   },
   (error) => {
+    console.error('❌ Erreur intercepteur calendrier:', error)
+    return Promise.reject(error)
+  }
+)
+
+// Intercepteur de réponse
+axiosInstance.interceptors.response.use(
+  (response) => {
+    console.log(`✅ ${response.status} ${response.config.url}`)
+    return response
+  },
+  (error) => {
+    console.error('❌ Erreur réponse calendrier:', error.message)
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      window.location.href = '/login'
+    }
     return Promise.reject(error)
   }
 )

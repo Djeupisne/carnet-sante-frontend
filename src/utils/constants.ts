@@ -1,5 +1,14 @@
-// CORRIGÉ : URL directe au lieu de import.meta.env
-export const API_BASE_URL = 'http://localhost:3001/api'
+// ============================================
+// 1. src/utils/constants.ts - CORRIGÉ
+// ============================================
+
+// ✅ URL de production (utilisera .env si disponible)
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+                           'https://carnet-sante-backend.onrender.com/api'
+
+// Autres constantes
+export const TOKEN_KEY = 'token'
+export const USER_KEY = 'user'
 
 export const USER_ROLES = {
   PATIENT: 'patient',
@@ -60,3 +69,5 @@ export const SPECIALIZATIONS = [
   'Neurologie',
   'Orthopédie',
 ] as const
+
+
