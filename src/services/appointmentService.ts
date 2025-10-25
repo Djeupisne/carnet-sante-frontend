@@ -1,4 +1,3 @@
-// src/services/appointmentService.ts - CORRIGÉ
 import api from './api'
 import { Appointment, CreateAppointmentData, Doctor, AppointmentSlot } from '../types/appointment'
 
@@ -10,46 +9,54 @@ export const appointmentService = {
       const response = await api.get('/appointments')
       console.log('📋 Réponse complète des rendez-vous:', response)
       
-      // Gestion flexible des différents formats de réponse
-      let appointmentsData: any[] = []
-      
-      if (Array.isArray(response.data)) {
-        // Format 1: Le tableau est directement dans response.data
-        appointmentsData = response.data
-      } else if (response.data && Array.isArray(response.data.data)) {
-        // Format 2: Le tableau est dans response.data.data
-        appointmentsData = response.data.data
-      } else if (response.data && response.data.success && Array.isArray(response.data.data)) {
-        // Format 3: Le tableau est dans response.data.data avec un flag success
-        appointmentsData = response.data.data
-      } else if (response.data && Array.isArray(response.data.appointments)) {
-        // Format 4: Le tableau est dans response.data.appointments
-        appointmentsData = response.data.appointments
+      // Votre API retourne { success: true, data: [], count: number }
+      if (response.data && response.data.success && Array.isArray(response.data.data)) {
+        const appointments = response.data.data
+        console.log('✅ Rendez-vous extraits:', appointments.length)
+        return appointments
       } else {
         console.warn('⚠️ Format de réponse inattendu pour les rendez-vous:', response.data)
         return []
       }
-      
-      console.log('✅ Rendez-vous extraits:', appointmentsData)
-      return appointmentsData
     } catch (error) {
       console.error('❌ Erreur getAppointments:', error)
-      return [] // Retourner un tableau vide en cas d'erreur
+      return []
     }
   },
 
-  // Récupérer un rendez-vous spécifique
+  // Récupérer la liste des médecins
+  async getDoctors(): Promise<Doctor[]> {
+    try {
+      console.log('👨‍⚕️ Appel API pour les médecins...')
+      const response = await api.get('/doctors')
+      console.log('👨‍⚕️ Réponse médecins:', response)
+      
+      // Votre API retourne { success: true, data: [], count: number }
+      if (response.data && response.data.success && Array.isArray(response.data.data)) {
+        const doctors = response.data.data
+        console.log('✅ Médecins extraits:', doctors.length)
+        return doctors
+      } else {
+        console.warn('⚠️ Format de réponse inattendu pour les médecins:', response.data)
+        return []
+      }
+    } catch (error) {
+      console.error('❌ Erreur getDoctors:', error)
+      return []
+    }
+  },
+
+  // ... autres méthodes restent inchangées
   async getAppointment(id: string): Promise<Appointment> {
     try {
       const response = await api.get(`/appointments/${id}`)
-      return response.data.data || response.data
+      return response.data.data
     } catch (error) {
       console.error('Erreur getAppointment:', error)
       throw error
     }
   },
 
-  // Créer un nouveau rendez-vous
   async createAppointment(data: CreateAppointmentData): Promise<Appointment> {
     try {
       const appointmentData = {
@@ -62,80 +69,47 @@ export const appointmentService = {
       }
 
       const response = await api.post('/appointments', appointmentData)
-      return response.data.data || response.data
+      return response.data.data
     } catch (error) {
       console.error('Erreur createAppointment:', error)
       throw error
     }
   },
 
-  // Annuler un rendez-vous
   async cancelAppointment(id: string, reason?: string): Promise<Appointment> {
     try {
       const response = await api.patch(`/appointments/${id}/cancel`, { cancellationReason: reason })
-      return response.data.data || response.data
+      return response.data.data
     } catch (error) {
       console.error('Erreur cancelAppointment:', error)
       throw error
     }
   },
 
-  // Confirmer un rendez-vous
   async confirmAppointment(id: string): Promise<Appointment> {
     try {
       const response = await api.patch(`/appointments/${id}/confirm`)
-      return response.data.data || response.data
+      return response.data.data
     } catch (error) {
       console.error('Erreur confirmAppointment:', error)
       throw error
     }
   },
 
-  // Récupérer la liste des médecins
-  async getDoctors(): Promise<Doctor[]> {
-    try {
-      console.log('👨‍⚕️ Appel API pour les médecins...')
-      const response = await api.get('/doctors')
-      console.log('👨‍⚕️ Réponse médecins:', response)
-      
-      // Même logique de gestion flexible
-      let doctorsData: any[] = []
-      
-      if (Array.isArray(response.data)) {
-        doctorsData = response.data
-      } else if (response.data && Array.isArray(response.data.data)) {
-        doctorsData = response.data.data
-      } else if (response.data && response.data.success && Array.isArray(response.data.data)) {
-        doctorsData = response.data.data
-      } else {
-        console.warn('⚠️ Format de réponse inattendu pour les médecins:', response.data)
-        return []
-      }
-      
-      console.log('✅ Médecins extraits:', doctorsData)
-      return doctorsData
-    } catch (error) {
-      console.error('❌ Erreur getDoctors:', error)
-      return [] // Retourner un tableau vide en cas d'erreur
-    }
-  },
-
-  // Récupérer les créneaux disponibles d'un médecin
   async getDoctorAvailability(doctorId: string, date: string): Promise<AppointmentSlot[]> {
     try {
       const response = await api.get(`/doctors/${doctorId}/availability?date=${date}`)
-      return response.data.data || response.data || []
+      return response.data.data || []
     } catch (error) {
       console.error('Erreur getDoctorAvailability:', error)
       return []
     }
   },
 
-  // Noter un rendez-vous
   async rateAppointment(id: string, rating: number, feedback?: string): Promise<Appointment> {
     try {
       const response = await api.patch(`/appointments/${id}/rate`, { rating, feedback })
-      return response.data.data || response.data
+      return response.data.data
     } catch (error) {
       console.error('Erreur rateAppointment:', error)
       throw error
