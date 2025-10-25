@@ -63,31 +63,63 @@ const PatientDashboard: React.FC = () => {
 
     try {
       setAppointmentsLoading(true);
-      const appointments = await appointmentService.getAppointments();
+      console.log('🔄 Chargement des rendez-vous depuis le service...');
       
-      const transformedAppointments: Appointment[] = appointments.map((apt: any) => ({
-        id: apt.id,
-        doctor: {
-          firstName: apt.doctor.firstName,
-          lastName: apt.doctor.lastName,
-          specialty: apt.doctor.specialty
-        },
-        appointmentDate: apt.appointmentDate,
-        duration: apt.duration,
-        status: apt.status,
-        type: apt.type,
-        reason: apt.reason
-      }));
+      const appointments = await appointmentService.getAppointments();
+      console.log('📋 Rendez-vous reçus du service:', appointments);
+      
+      // Vérification de sécurité
+      if (!appointments || !Array.isArray(appointments)) {
+        console.warn('⚠️ Les rendez-vous ne sont pas un tableau:', appointments);
+        setUpcomingAppointments([]);
+        return;
+      }
 
-      const now = new Date();
-      const upcoming = transformedAppointments.filter(apt => {
-        const appointmentDate = new Date(apt.appointmentDate);
-        return appointmentDate >= now && apt.status !== 'cancelled' && apt.status !== 'completed';
+      if (appointments.length === 0) {
+        console.log('ℹ️ Aucun rendez-vous trouvé');
+        setUpcomingAppointments([]);
+        return;
+      }
+
+      // Transformation des données avec valeurs par défaut
+      const transformedAppointments: Appointment[] = appointments.map((apt: any, index: number) => {
+        console.log(`📝 Transformation du rendez-vous ${index}:`, apt);
+        
+        return {
+          id: apt.id || `temp-${index}`,
+          doctor: {
+            firstName: apt.doctor?.firstName || apt.doctorId || 'Docteur',
+            lastName: apt.doctor?.lastName || '',
+            specialty: apt.doctor?.specialty || 'Généraliste'
+          },
+          appointmentDate: apt.appointmentDate || new Date().toISOString(),
+          duration: apt.duration || 30,
+          status: apt.status || 'pending',
+          type: apt.type || 'in_person',
+          reason: apt.reason || 'Consultation médicale'
+        };
       });
 
+      console.log('🔄 Filtrage des rendez-vous à venir...');
+      const now = new Date();
+      const upcoming = transformedAppointments.filter(apt => {
+        try {
+          const appointmentDate = new Date(apt.appointmentDate);
+          const isValidDate = !isNaN(appointmentDate.getTime());
+          const isFuture = appointmentDate >= now;
+          const isActive = apt.status !== 'cancelled' && apt.status !== 'completed';
+          
+          return isValidDate && isFuture && isActive;
+        } catch (error) {
+          console.warn('❌ Date de rendez-vous invalide:', apt.appointmentDate);
+          return false;
+        }
+      });
+
+      console.log('✅ Rendez-vous à venir filtrés:', upcoming);
       setUpcomingAppointments(upcoming);
     } catch (err) {
-      console.error('Erreur lors du chargement des rendez-vous:', err);
+      console.error('❌ Erreur lors du chargement des rendez-vous:', err);
       setUpcomingAppointments([]);
     } finally {
       setAppointmentsLoading(false);
@@ -105,23 +137,30 @@ const PatientDashboard: React.FC = () => {
         setLoading(true);
         setError(null);
         
-        const doctorsResponse = await userService.getAllDoctors();
-        const fetchedDoctors: Doctor[] = doctorsResponse.data.map((d: any) => ({
+        console.log('🔄 Chargement des médecins...');
+        // Utilisez appointmentService.getDoctors() pour la cohérence
+        const doctorsData = await appointmentService.getDoctors();
+        
+        console.log('👨‍⚕️ Médecins reçus:', doctorsData);
+        
+        const fetchedDoctors: Doctor[] = doctorsData.map((d: any) => ({
           id: d.id,
           firstName: d.firstName,
           lastName: d.lastName,
           specialty: d.specialty || 'Non spécifié',
-          available: d.isActive,
-          availableSlots: d.availability?.slots || ['09:00', '10:00', '11:00', '14:00', '15:00'],
+          available: d.isActive !== false,
+          availableSlots: d.availableSlots || d.availability?.slots || ['09:00', '10:00', '11:00', '14:00', '15:00'],
         }));
         
         setDoctors(fetchedDoctors);
         setCalendars([]);
         await fetchAppointments();
+        
       } catch (err) {
-        console.error('Erreur lors de la récupération des données:', err);
-        setError('Impossible de charger les données.');
+        console.error('❌ Erreur lors de la récupération des données:', err);
+        setError('Impossible de charger les données. Utilisation des données de secours.');
 
+        // Données simulées en cas d'erreur
         const mockDoctors: Doctor[] = [
           { 
             id: '1', 
@@ -130,6 +169,22 @@ const PatientDashboard: React.FC = () => {
             specialty: 'Cardiologie', 
             available: true, 
             availableSlots: ['09:00', '10:00', '11:00', '14:00', '15:00'] 
+          },
+          { 
+            id: '2', 
+            firstName: 'Pierre', 
+            lastName: 'Martin', 
+            specialty: 'Dermatologie', 
+            available: true, 
+            availableSlots: ['10:30', '14:00', '16:00'] 
+          },
+          { 
+            id: '3', 
+            firstName: 'Sophie', 
+            lastName: 'Laurent', 
+            specialty: 'Neurologie', 
+            available: false, 
+            availableSlots: [] 
           },
         ];
         
@@ -147,7 +202,12 @@ const PatientDashboard: React.FC = () => {
   const formatAppointmentDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString('fr-FR');
+      return date.toLocaleDateString('fr-FR', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
     } catch {
       return 'Date invalide';
     }
@@ -432,6 +492,10 @@ const PatientDashboard: React.FC = () => {
                             Motif: {appointment.reason}
                           </p>
                         )}
+                        <p className="text-white/50 text-xs mt-2">
+                          Type: {appointment.type === 'teleconsultation' ? 'Téléconsultation' : 
+                                appointment.type === 'home_visit' ? 'Visite à domicile' : 'En personne'}
+                        </p>
                       </div>
                       <div className="flex items-center space-x-3">
                         <span
@@ -481,15 +545,25 @@ const PatientDashboard: React.FC = () => {
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-white/60">Dernière consultation</span>
-                  <span className="text-white font-medium">15 déc. 2024</span>
+                  <span className="text-white font-medium">
+                    {upcomingAppointments.length > 0 
+                      ? formatAppointmentDate(upcomingAppointments[0].appointmentDate)
+                      : 'Aucune'
+                    }
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-white/60">Prochain RDV</span>
-                  <span className="text-white font-medium">15 janv. 2024</span>
+                  <span className="text-white font-medium">
+                    {upcomingAppointments.length > 0 
+                      ? formatAppointmentDate(upcomingAppointments[0].appointmentDate)
+                      : 'Aucun'
+                    }
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-white/60">Médicaments actifs</span>
-                  <span className="text-white font-medium">3</span>
+                  <span className="text-white font-medium">{medicalSummary.medications}</span>
                 </div>
               </div>
             </div>
