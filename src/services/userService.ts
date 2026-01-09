@@ -1,7 +1,6 @@
 /** ============================================
  * src/services/userService.ts - CORRIGÉ
  * ============================================ */
-
 import api from '../types/api'
 import { User } from '../types'
 
@@ -81,24 +80,40 @@ export const userService = {
 
   async getAllDoctors(): Promise<{ success: boolean; data: User[] }> {
     try {
-      console.log('Appel à l\'API pour récupérer les médecins...')
+      console.log('🔍 Appel à l\'API pour récupérer les médecins...')
       const response = await api.get('/users', { params: { role: 'doctor' } })
-      console.log('Réponse de l\'API pour les médecins:', response.data)
-      return { success: true, data: response.data }
+      console.log('✅ Réponse de l\'API pour les médecins:', response.data)
+      
+      // La réponse backend renvoie directement un tableau
+      // Normaliser la réponse pour toujours avoir { success, data }
+      if (Array.isArray(response.data)) {
+        return { success: true, data: response.data }
+      }
+      
+      // Si c'est déjà dans le bon format
+      return response.data
     } catch (error: any) {
-      console.error('Erreur dans getAllDoctors:', error.response?.data || error.message)
+      console.error('❌ Erreur dans getAllDoctors:', error.response?.data || error.message)
       throw new Error(error.response?.data?.message || 'Erreur lors de la récupération des médecins')
     }
   },
 
   async getAllPatients(): Promise<{ success: boolean; data: User[] }> {
     try {
-      console.log('Appel à l\'API pour récupérer les patients...')
+      console.log('🔍 Appel à l\'API pour récupérer les patients...')
       const response = await api.get('/users', { params: { role: 'patient' } })
-      console.log('Réponse de l\'API pour les patients:', response.data)
-      return { success: true, data: response.data }
+      console.log('✅ Réponse de l\'API pour les patients:', response.data)
+      
+      // La réponse backend renvoie directement un tableau
+      // Normaliser la réponse pour toujours avoir { success, data }
+      if (Array.isArray(response.data)) {
+        return { success: true, data: response.data }
+      }
+      
+      // Si c'est déjà dans le bon format
+      return response.data
     } catch (error: any) {
-      console.error('Erreur dans getAllPatients:', error.response?.data || error.message)
+      console.error('❌ Erreur dans getAllPatients:', error.response?.data || error.message)
       throw new Error(error.response?.data?.message || 'Erreur lors de la récupération des patients')
     }
   },
@@ -108,12 +123,12 @@ export const userService = {
     data: { isActive?: boolean }
   ): Promise<{ success: boolean; data: User }> {
     try {
-      console.log(`Mise à jour de l'utilisateur ${userId} avec:`, data)
+      console.log(`🔄 Mise à jour de l'utilisateur ${userId} avec:`, data)
       const response = await api.put(`/users/${userId}`, data)
-      console.log('Réponse de l\'API pour la mise à jour:', response.data)
+      console.log('✅ Réponse de l\'API pour la mise à jour:', response.data)
       return response.data
     } catch (error: any) {
-      console.error('Erreur dans updateUser:', error.response?.data || error.message)
+      console.error('❌ Erreur dans updateUser:', error.response?.data || error.message)
       throw new Error(
         error.response?.data?.message || 'Erreur lors de la mise à jour de l\'utilisateur'
       )
