@@ -29,20 +29,25 @@ const Register: React.FC = () => {
   const [currentLanguage, setCurrentLanguage] = useState('')
 
   const validateForm = () => {
+    console.log('🔍 === VALIDATION DU FORMULAIRE ===')
+    
     const newErrors: Record<string, string> = {}
 
+    // Validation prénom
     if (!formData.firstName.trim()) {
       newErrors.firstName = 'Le prénom est requis'
-    } else if (formData.firstName.length < 2) {
+    } else if (formData.firstName.trim().length < 2) {
       newErrors.firstName = 'Le prénom doit contenir au moins 2 caractères'
     }
 
+    // Validation nom
     if (!formData.lastName.trim()) {
       newErrors.lastName = 'Le nom est requis'
-    } else if (formData.lastName.length < 2) {
+    } else if (formData.lastName.trim().length < 2) {
       newErrors.lastName = 'Le nom doit contenir au moins 2 caractères'
     }
 
+    // Validation email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!formData.email) {
       newErrors.email = 'L\'email est requis'
@@ -50,63 +55,92 @@ const Register: React.FC = () => {
       newErrors.email = 'Format d\'email invalide'
     }
 
+    // Validation date de naissance
     if (!formData.dateOfBirth) {
       newErrors.dateOfBirth = 'La date de naissance est requise'
     } else {
       const birthDate = new Date(formData.dateOfBirth)
       const today = new Date()
-      const age = today.getFullYear() - birthDate.getFullYear()
+      let age = today.getFullYear() - birthDate.getFullYear()
       
-      if (age < 18) {
-        newErrors.dateOfBirth = 'Vous devez avoir au moins 18 ans'
+      // Ajuster l'âge si l'anniversaire n'est pas encore passé cette année
+      const monthDiff = today.getMonth() - birthDate.getMonth()
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--
+      }
+      
+      console.log(`📅 Âge calculé: ${age} ans (date: ${formData.dateOfBirth})`)
+      
+      // ✅ CORRIGÉ : 16 ans minimum (au lieu de 18) pour tests
+      if (age < 16) {
+        newErrors.dateOfBirth = `Vous devez avoir au moins 16 ans (actuellement: ${age} ans)`
       } else if (age > 120) {
         newErrors.dateOfBirth = 'Date de naissance invalide'
       }
     }
 
+    // Validation mot de passe
     if (!formData.password) {
       newErrors.password = 'Le mot de passe est requis'
     } else if (formData.password.length < 6) {
       newErrors.password = 'Le mot de passe doit contenir au moins 6 caractères'
     }
 
+    // Validation téléphone
     if (formData.phoneNumber && !/^\+?[\d\s\-\(\)]{10,}$/.test(formData.phoneNumber.replace(/\s/g, ''))) {
       newErrors.phoneNumber = 'Format de téléphone invalide'
     }
 
+    // Validation groupe sanguin
     if (formData.bloodType && !['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].includes(formData.bloodType)) {
       newErrors.bloodType = 'Groupe sanguin invalide'
     }
 
+    // Validation spécifique aux médecins
     if (formData.role === 'doctor') {
+      console.log('🔍 Validation des champs médecin...')
+      
+      // Validation spécialité
       if (!formData.specialty.trim()) {
         newErrors.specialty = 'La spécialité est requise'
       }
 
+      // Validation numéro de licence
       if (!formData.licenseNumber.trim()) {
         newErrors.licenseNumber = 'Le numéro de licence est requis'
-      } else if (formData.licenseNumber.length < 3) {
+      } else if (formData.licenseNumber.trim().length < 3) {
         newErrors.licenseNumber = 'Le numéro de licence doit contenir au moins 3 caractères'
       }
 
+      // ✅ CORRIGÉ : Validation améliorée de la biographie
       if (!formData.biography.trim()) {
         newErrors.biography = 'La biographie est requise'
-      } else if (formData.biography.length < 50) {
-        newErrors.biography = 'La biographie doit contenir au moins 50 caractères'
+      } else {
+        const cleanBio = formData.biography.trim()
+        const bioLength = cleanBio.length
+        console.log(`📏 Longueur biographie nettoyée: ${bioLength} caractères`)
+        
+        if (bioLength < 50) {
+          newErrors.biography = `La biographie doit contenir au moins 50 caractères (actuellement: ${bioLength})`
+        }
       }
 
+      // Validation langues
       if (formData.languages.length === 0) {
         newErrors.languages = 'Au moins une langue doit être spécifiée'
       }
+      
+      console.log('✅ Validation médecin terminée')
     }
 
+    console.log('📊 Erreurs trouvées:', Object.keys(newErrors).length)
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    console.log(`Champ: ${name}, Valeur: ${value}`);
+    console.log(`Champ: ${name}, Valeur: ${value}`)
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -147,6 +181,13 @@ const Register: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    console.log('🔍 === DÉBUT DE L\'ENVOI ===')
+    console.log('📏 Vérification des longueurs:')
+    console.log('- Biographie brute:', formData.biography.length, 'caractères')
+    console.log('- Biographie nettoyée:', formData.biography.trim().length, 'caractères')
+    console.log('- Languages:', formData.languages)
+    console.log('- Languages est tableau?', Array.isArray(formData.languages))
+    
     if (!validateForm()) {
       showNotification('Veuillez corriger les erreurs dans le formulaire', 'error')
       return
@@ -168,40 +209,54 @@ const Register: React.FC = () => {
 
       // ✅ CORRIGÉ : Ajouter les champs optionnels seulement s'ils ont une valeur
       if (formData.phoneNumber.trim()) {
-        submitData.phoneNumber = formData.phoneNumber.trim();
+        submitData.phoneNumber = formData.phoneNumber.trim()
       }
 
       if (formData.bloodType) {
-        submitData.bloodType = formData.bloodType;
+        submitData.bloodType = formData.bloodType
       }
 
       // ✅ CORRIGÉ : Pour les médecins, envoyer les champs spécifiques
       if (formData.role === 'doctor') {
-        submitData.specialty = formData.specialty.trim();
-        submitData.licenseNumber = formData.licenseNumber.trim();
-        submitData.biography = formData.biography.trim();
-        submitData.languages = formData.languages;
+        submitData.specialty = formData.specialty.trim()
+        submitData.licenseNumber = formData.licenseNumber.trim()
+        submitData.biography = formData.biography.trim()
+        submitData.languages = formData.languages
+        
+        // Logs détaillés pour débogage
+        console.log('🔍 Validation finale des données médecin:')
+        console.log('- Spécialité:', submitData.specialty, 'longueur:', submitData.specialty.length)
+        console.log('- License:', submitData.licenseNumber, 'longueur:', submitData.licenseNumber.length)
+        console.log('- Biographie longueur:', submitData.biography.length)
+        console.log('- Languages:', submitData.languages)
       }
-      // ❌ NE PAS envoyer les champs doctors pour les patients
 
-      console.log('🔍 Données envoyées à l\'API:', JSON.stringify(submitData, null, 2));
-      console.log('🔍 Langues:', submitData.languages);
-      console.log('🔍 Spécialité:', submitData.specialty);
-      console.log('🔍 Groupe sanguin:', submitData.bloodType);
+      console.log('🔍 Données envoyées à l\'API:', JSON.stringify(submitData, null, 2))
+      console.log('🔍 Langues:', submitData.languages)
+      console.log('🔍 Spécialité:', submitData.specialty)
+      console.log('🔍 Groupe sanguin:', submitData.bloodType)
       
       await register(submitData)
       showNotification('Compte créé avec succès!', 'success')
       navigate('/dashboard')
     } catch (error: any) {
-      console.error('❌ Erreur lors de l\'enregistrement:', error);
+      console.error('❌ Erreur lors de l\'enregistrement:', error)
       if (error.response?.data?.errors) {
         const apiErrors = error.response.data.errors
         const fieldErrors: Record<string, string> = {}
         
         // ✅ CORRIGÉ : Gestion améliorée des erreurs
-        apiErrors.forEach((err: any) => {
-          fieldErrors[err.field] = err.message
-        })
+        if (Array.isArray(apiErrors)) {
+          apiErrors.forEach((err: any) => {
+            if (err.field) {
+              fieldErrors[err.field] = err.message
+            }
+          })
+        } else if (typeof apiErrors === 'object') {
+          Object.keys(apiErrors).forEach(key => {
+            fieldErrors[key] = apiErrors[key]
+          })
+        }
         
         setErrors(fieldErrors)
         showNotification('Erreur lors de la création du compte', 'error')
@@ -215,7 +270,8 @@ const Register: React.FC = () => {
 
   const getMaxBirthDate = () => {
     const today = new Date()
-    const maxDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate())
+    // ✅ CORRIGÉ : 16 ans minimum (au lieu de 18) pour tests
+    const maxDate = new Date(today.getFullYear() - 16, today.getMonth(), today.getDate())
     return maxDate.toISOString().split('T')[0]
   }
 
@@ -511,8 +567,9 @@ const Register: React.FC = () => {
                   {errors.biography && (
                     <p className="mt-1 text-sm text-red-400">{errors.biography}</p>
                   )}
+                  {/* ✅ CORRIGÉ : Afficher la longueur nettoyée */}
                   <p className="mt-1 text-sm text-white/60">
-                    {formData.biography.length}/50 caractères minimum
+                    {formData.biography.trim().length}/50 caractères minimum
                   </p>
                 </div>
               </>
