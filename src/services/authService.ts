@@ -14,6 +14,12 @@ export interface RegisterData {
   dateOfBirth: string
   gender: 'male' | 'female' | 'other'
   phoneNumber?: string
+  bloodType?: string
+  // ✅ Champs spécifiques aux médecins
+  specialty?: string
+  licenseNumber?: string
+  biography?: string
+  languages?: string[]
 }
 
 export interface User {
@@ -26,6 +32,12 @@ export interface User {
   gender: string
   dateOfBirth: string
   phoneNumber?: string
+  bloodType?: string
+  // ✅ Champs spécifiques aux médecins
+  specialty?: string
+  licenseNumber?: string
+  biography?: string
+  languages?: string[]
   isActive: boolean
   isVerified: boolean
   profileCompleted: boolean
@@ -109,8 +121,8 @@ export const authService = {
       console.log('📝 authService.register - Envoi des données...')
       console.log('Email:', userData.email)
 
-      // Adaptation des données pour correspondre à votre modèle User
-      const registerData = {
+      // ✅ Adaptation des données pour correspondre au modèle User
+      const registerData: any = {
         email: userData.email,
         password: userData.password,
         firstName: userData.firstName,
@@ -119,6 +131,23 @@ export const authService = {
         dateOfBirth: userData.dateOfBirth,
         gender: userData.gender,
         phoneNumber: userData.phoneNumber || null,
+        bloodType: userData.bloodType || null,
+      }
+
+      // ✅ Ajouter les champs spécifiques aux médecins
+      if (userData.role === 'doctor') {
+        console.log('🏥 Ajout des données médecin...')
+        registerData.specialty = userData.specialty || null
+        registerData.licenseNumber = userData.licenseNumber || null
+        registerData.biography = userData.biography || null
+        registerData.languages = userData.languages || []
+        
+        console.log('Données médecin:', {
+          specialty: registerData.specialty,
+          licenseNumber: registerData.licenseNumber,
+          biographyLength: registerData.biography ? registerData.biography.length : 0,
+          languages: registerData.languages
+        })
       }
 
       console.log('Données à envoyer:', registerData)
