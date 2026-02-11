@@ -1,117 +1,218 @@
 import api from './api'
-import { Appointment, CreateAppointmentData, Doctor, AppointmentSlot } from '../types/appointment'
+
+export interface Appointment {
+  id: string
+  patientId: string
+  doctorId: string
+  appointmentDate: string
+  duration: number
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show'
+  type: 'in_person' | 'teleconsultation' | 'home_visit'
+  reason?: string
+  notes?: string
+}
+
+export interface Doctor {
+  id: string
+  firstName: string
+  lastName: string
+  specialty: string
+  isActive: boolean
+  availableSlots?: string[]
+  bookedSlots?: string[] // ✅ Nouveaux créneaux réservés
+}
+
+export interface CreateAppointmentData {
+  doctorId: string
+  appointmentDate: string
+  duration?: number
+  type?: 'in_person' | 'teleconsultation' | 'home_visit'
+  reason?: string
+  notes?: string
+}
 
 export const appointmentService = {
-  // Récupérer tous les rendez-vous de l'utilisateur
-  async getAppointments(): Promise<Appointment[]> {
-    try {
-      console.log('📋 Appel API pour les rendez-vous...')
-      const response = await api.get('/appointments')
-      console.log('📋 Réponse complète des rendez-vous:', response)
-      
-      // Votre API retourne { success: true, data: [], count: number }
-      if (response.data && response.data.success && Array.isArray(response.data.data)) {
-        const appointments = response.data.data
-        console.log('✅ Rendez-vous extraits:', appointments.length)
-        return appointments
-      } else {
-        console.warn('⚠️ Format de réponse inattendu pour les rendez-vous:', response.data)
-        return []
-      }
-    } catch (error) {
-      console.error('❌ Erreur getAppointments:', error)
-      return []
-    }
-  },
-
-  // Récupérer la liste des médecins
-  async getDoctors(): Promise<Doctor[]> {
-    try {
-      console.log('👨‍⚕️ Appel API pour les médecins...')
-      const response = await api.get('/doctors')
-      console.log('👨‍⚕️ Réponse médecins:', response)
-      
-      // Votre API retourne { success: true, data: [], count: number }
-      if (response.data && response.data.success && Array.isArray(response.data.data)) {
-        const doctors = response.data.data
-        console.log('✅ Médecins extraits:', doctors.length)
-        return doctors
-      } else {
-        console.warn('⚠️ Format de réponse inattendu pour les médecins:', response.data)
-        return []
-      }
-    } catch (error) {
-      console.error('❌ Erreur getDoctors:', error)
-      return []
-    }
-  },
-
-  // ... autres méthodes restent inchangées
-  async getAppointment(id: string): Promise<Appointment> {
-    try {
-      const response = await api.get(`/appointments/${id}`)
-      return response.data.data
-    } catch (error) {
-      console.error('Erreur getAppointment:', error)
-      throw error
-    }
-  },
-
+  /**
+   * Créer un nouveau rendez-vous
+   */
   async createAppointment(data: CreateAppointmentData): Promise<Appointment> {
     try {
-      const appointmentData = {
-        doctorId: data.doctorId,
-        appointmentDate: new Date(`${data.date}T${data.startTime}`).toISOString(),
-        duration: 30,
-        type: data.type === 'teleconsultation' ? 'teleconsultation' : 'in_person',
-        reason: data.reason,
-        status: 'pending'
+      console.log('📅 Création d\'un rendez-vous:', data)
+      const response = await api.post('/appointments', data)
+      
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || 'Erreur lors de la création du rendez-vous')
       }
-
-      const response = await api.post('/appointments', appointmentData)
-      return response.data.data
-    } catch (error) {
-      console.error('Erreur createAppointment:', error)
+      
+      console.log('✅ Rendez-vous créé:', response.data.data)
+      return response.data.data.appointment
+    } catch (error: any) {
+      console.error('❌ Erreur création rendez-vous:', error)
       throw error
     }
   },
 
-  async cancelAppointment(id: string, reason?: string): Promise<Appointment> {
+  /**
+   * Récupérer tous les rendez-vous de l'utilisateur connecté
+   */
+  async getAppointments(): Promise<Appointment[]> {
     try {
-      const response = await api.patch(`/appointments/${id}/cancel`, { cancellationReason: reason })
-      return response.data.data
-    } catch (error) {
-      console.error('Erreur cancelAppointment:', error)
-      throw error
-    }
-  },
-
-  async confirmAppointment(id: string): Promise<Appointment> {
-    try {
-      const response = await api.patch(`/appointments/${id}/confirm`)
-      return response.data.data
-    } catch (error) {
-      console.error('Erreur confirmAppointment:', error)
-      throw error
-    }
-  },
-
-  async getDoctorAvailability(doctorId: string, date: string): Promise<AppointmentSlot[]> {
-    try {
-      const response = await api.get(`/doctors/${doctorId}/availability?date=${date}`)
-      return response.data.data || []
-    } catch (error) {
-      console.error('Erreur getDoctorAvailability:', error)
+      console.log('📋 Récupération des rendez-vous...')
+      const response = await api.get('/appointments')
+      
+      if (!response.data?.success) {
+        throw new Error('Erreur lors de la récupération des rendez-vous')
+      }
+      
+      const appointments = response.data.data?.appointments || []
+      console.log('✅ Rendez-vous récupérés:', appointments.length)
+      return appointments
+    } catch (error: any) {
+      console.error('❌ Erreur récupération rendez-vous:', error)
       return []
     }
   },
 
-  async rateAppointment(id: string, rating: number, feedback?: string): Promise<Appointment> {
+  /**
+   * Récupérer un rendez-vous par ID
+   */
+  async getAppointmentById(id: string): Promise<Appointment> {
     try {
-      const response = await api.patch(`/appointments/${id}/rate`, { rating, feedback })
-      return response.data.data
-    } catch (error) {
-      console.error('Erreur rateAppointment:', error)
+      console.log('📋 Récupération du rendez-vous:', id)
+      const response = await api.get(`/appointments/${id}`)
+      
+      if (!response.data?.success) {
+        throw new Error('Rendez-vous introuvable')
+      }
+      
+      return response.data.data.appointment
+    } catch (error: any) {
+      console.error('❌ Erreur récupération rendez-vous:', error)
+      throw error
+    }
+  },
+
+  /**
+   * ✅ NOUVEAU : Récupérer les créneaux disponibles d'un médecin pour une date donnée
+   */
+  async getDoctorAvailableSlots(doctorId: string, date: string): Promise<string[]> {
+    try {
+      console.log('🕐 Récupération des créneaux disponibles:', { doctorId, date })
+      const response = await api.get(`/appointments/available-slots/${doctorId}`, {
+        params: { date }
+      })
+      
+      if (!response.data?.success) {
+        throw new Error('Erreur lors de la récupération des créneaux')
+      }
+      
+      const availableSlots = response.data.data?.availableSlots || []
+      console.log('✅ Créneaux disponibles:', availableSlots)
+      return availableSlots
+    } catch (error: any) {
+      console.error('❌ Erreur récupération créneaux:', error)
+      // En cas d'erreur, retourner des créneaux par défaut
+      return ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00']
+    }
+  },
+
+  /**
+   * ✅ NOUVEAU : Récupérer les créneaux occupés d'un médecin pour une date donnée
+   */
+  async getDoctorBookedSlots(doctorId: string, date: string): Promise<string[]> {
+    try {
+      console.log('🚫 Récupération des créneaux occupés:', { doctorId, date })
+      const response = await api.get(`/appointments/booked-slots/${doctorId}`, {
+        params: { date }
+      })
+      
+      if (!response.data?.success) {
+        throw new Error('Erreur lors de la récupération des créneaux occupés')
+      }
+      
+      const bookedSlots = response.data.data?.bookedSlots || []
+      console.log('✅ Créneaux occupés:', bookedSlots)
+      return bookedSlots
+    } catch (error: any) {
+      console.error('❌ Erreur récupération créneaux occupés:', error)
+      return []
+    }
+  },
+
+  /**
+   * Récupérer la liste des médecins
+   */
+  async getDoctors(): Promise<Doctor[]> {
+    try {
+      console.log('👨‍⚕️ Récupération des médecins...')
+      const response = await api.get('/doctors')
+      
+      if (!response.data?.success) {
+        throw new Error('Erreur lors de la récupération des médecins')
+      }
+      
+      const doctors = response.data.data?.doctors || response.data.data || []
+      console.log('✅ Médecins récupérés:', doctors.length)
+      return doctors
+    } catch (error: any) {
+      console.error('❌ Erreur récupération médecins:', error)
+      return []
+    }
+  },
+
+  /**
+   * Annuler un rendez-vous
+   */
+  async cancelAppointment(id: string, reason?: string): Promise<void> {
+    try {
+      console.log('🚫 Annulation du rendez-vous:', id)
+      const response = await api.patch(`/appointments/${id}/cancel`, { reason })
+      
+      if (!response.data?.success) {
+        throw new Error('Erreur lors de l\'annulation du rendez-vous')
+      }
+      
+      console.log('✅ Rendez-vous annulé')
+    } catch (error: any) {
+      console.error('❌ Erreur annulation rendez-vous:', error)
+      throw error
+    }
+  },
+
+  /**
+   * Confirmer un rendez-vous (pour les médecins)
+   */
+  async confirmAppointment(id: string): Promise<void> {
+    try {
+      console.log('✅ Confirmation du rendez-vous:', id)
+      const response = await api.patch(`/appointments/${id}/confirm`)
+      
+      if (!response.data?.success) {
+        throw new Error('Erreur lors de la confirmation du rendez-vous')
+      }
+      
+      console.log('✅ Rendez-vous confirmé')
+    } catch (error: any) {
+      console.error('❌ Erreur confirmation rendez-vous:', error)
+      throw error
+    }
+  },
+
+  /**
+   * Marquer un rendez-vous comme terminé
+   */
+  async completeAppointment(id: string, notes?: string): Promise<void> {
+    try {
+      console.log('✓ Marquage rendez-vous comme terminé:', id)
+      const response = await api.patch(`/appointments/${id}/complete`, { notes })
+      
+      if (!response.data?.success) {
+        throw new Error('Erreur lors de la finalisation du rendez-vous')
+      }
+      
+      console.log('✅ Rendez-vous marqué comme terminé')
+    } catch (error: any) {
+      console.error('❌ Erreur finalisation rendez-vous:', error)
       throw error
     }
   }
