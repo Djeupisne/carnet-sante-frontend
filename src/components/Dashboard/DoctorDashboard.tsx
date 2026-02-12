@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { userService } from '../../services/userService';
-import { Calendar, Users, Clock, DollarSign, X, Check } from 'lucide-react';
+import { appointmentService } from '../../services/appointmentService';
+import { Calendar, Users, Clock, DollarSign, X, Check, CreditCard } from 'lucide-react';
 import CalendarManagement from './CalendarManagement';
 
 interface Patient {
@@ -32,7 +33,7 @@ interface DoctorUser {
 
 const DoctorDashboard: React.FC = () => {
   const { user } = useAuth();
-  const doctorUser = user as DoctorUser; // Cast vers le type DoctorUser
+  const doctorUser = user as DoctorUser;
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,10 +47,34 @@ const DoctorDashboard: React.FC = () => {
   const [showBooking, setShowBooking] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [bookingStep, setBookingStep] = useState(1);
+  const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
+  const [cardInfo, setCardInfo] = useState({ number: '', date: '', cvv: '' });
+  const [reason, setReason] = useState('');
 
-  const mockTimeSlots = ['08:00', '09:00', '09:30', '10:00', '10:30', '11:00', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00'];
+  // Créneaux disponibles par défaut
+  const mockTimeSlots = [
+    '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', 
+    '11:00', '11:30', '14:00', '14:30', '15:00', '15:30', 
+    '16:00', '16:30', '17:00'
+  ];
+
+  // ✅ Générer les dates disponibles
+  const generateDates = () => {
+    const dates = [];
+    const today = new Date();
+    
+    for (let i = 0; i < 30; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      // Exclure dimanche (0)
+      if (date.getDay() !== 0) {
+        dates.push(date.toISOString().split('T')[0]);
+      }
+    }
+    return dates;
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -75,8 +100,6 @@ const DoctorDashboard: React.FC = () => {
             gender: p.gender,
           }));
           setPatients(fetchedPatients);
-
-          // Mettre à jour les stats avec le nombre réel de patients
           setStats((prev) => ({ ...prev, totalPatients: fetchedPatients.length }));
         } else {
           throw new Error('Format de données invalide pour les patients');
@@ -114,26 +137,45 @@ const DoctorDashboard: React.FC = () => {
     setSelectedPatient(patient);
     setShowBooking(true);
     setBookingStep(1);
+    setSelectedDate('');
     setSelectedTime('');
+    setReason('');
     setBookingConfirmed(false);
+    setCardInfo({ number: '', date: '', cvv: '' });
+  };
+
+  const handleDateSelect = (date: string) => {
+    setSelectedDate(date);
+    setSelectedTime('');
   };
 
   const handleConfirmPatient = () => {
     setBookingStep(2);
   };
 
-  const handleConfirmTime = () => {
-    if (selectedTime) setBookingStep(3);
+  const handleConfirmDate = () => {
+    if (selectedDate) setBookingStep(3);
   };
 
-  const handleConfirmAppointment = () => {
+  const handleConfirmTime = () => {
+    if (selectedTime) setBookingStep(4);
+  };
+
+  const handlePayment = () => {
+    if (!cardInfo.number || !cardInfo.date || !cardInfo.cvv) {
+      alert('Veuillez remplir tous les champs de paiement');
+      return;
+    }
+    
     setBookingConfirmed(true);
     setTimeout(() => {
       setShowBooking(false);
       setSelectedPatient(null);
       setBookingStep(1);
+      setSelectedDate('');
       setSelectedTime('');
-      alert(`Rendez-vous confirmé avec ${selectedPatient?.firstName} ${selectedPatient?.lastName} à ${selectedTime}`);
+      setCardInfo({ number: '', date: '', cvv: '' });
+      alert(`✅ Rendez-vous confirmé avec ${selectedPatient?.firstName} ${selectedPatient?.lastName} le ${selectedDate} à ${selectedTime}`);
     }, 1500);
   };
 
@@ -141,8 +183,11 @@ const DoctorDashboard: React.FC = () => {
     setShowBooking(false);
     setSelectedPatient(null);
     setBookingStep(1);
+    setSelectedDate('');
     setSelectedTime('');
+    setReason('');
     setBookingConfirmed(false);
+    setCardInfo({ number: '', date: '', cvv: '' });
   };
 
   const statCards: StatCard[] = [
@@ -172,7 +217,6 @@ const DoctorDashboard: React.FC = () => {
     },
   ];
 
-  // Fonction pour formater le genre
   const formatGender = (gender: string) => {
     switch (gender) {
       case 'male': return 'Homme';
@@ -340,7 +384,7 @@ const DoctorDashboard: React.FC = () => {
 
       <CalendarManagement />
 
-      {/* MODAL DE RÉSERVATION */}
+      {/* MODAL DE RÉSERVATION AVEC PAIEMENT */}
       {showBooking && selectedPatient && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -364,9 +408,11 @@ const DoctorDashboard: React.FC = () => {
                   </div>
                   <h3 className="text-xl font-bold text-gray-900 mb-2">Rendez-vous confirmé!</h3>
                   <p className="text-gray-600">Le rendez-vous a été planifié avec succès.</p>
+                  <p className="text-gray-600 mt-2">Paiement de 50€ traité.</p>
                 </div>
               ) : (
                 <>
+                  {/* Étape 1: Patient sélectionné */}
                   {bookingStep === 1 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Étape 1: Patient sélectionné</h3>
@@ -377,6 +423,20 @@ const DoctorDashboard: React.FC = () => {
                           <p>Groupe sanguin: {selectedPatient.bloodType || 'Non renseigné'}</p>
                         </div>
                       </div>
+                      
+                      <div className="mb-6">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Motif de la consultation
+                        </label>
+                        <textarea
+                          value={reason}
+                          onChange={(e) => setReason(e.target.value)}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                          rows={3}
+                          placeholder="Décrivez brièvement le motif de la consultation..."
+                        />
+                      </div>
+
                       <div className="flex justify-end gap-3">
                         <button 
                           onClick={closeBooking} 
@@ -386,7 +446,12 @@ const DoctorDashboard: React.FC = () => {
                         </button>
                         <button 
                           onClick={handleConfirmPatient} 
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition"
+                          disabled={!reason}
+                          className={`px-4 py-2 rounded-lg text-white font-semibold transition ${
+                            reason 
+                              ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer' 
+                              : 'bg-gray-400 cursor-not-allowed'
+                          }`}
                         >
                           Continuer
                         </button>
@@ -394,9 +459,60 @@ const DoctorDashboard: React.FC = () => {
                     </div>
                   )}
 
+                  {/* Étape 2: Sélection de la date */}
                   {bookingStep === 2 && (
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Étape 2: Sélectionnez l'heure</h3>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Étape 2: Sélectionnez la date</h3>
+                      
+                      <div className="mb-6">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Date du rendez-vous
+                        </label>
+                        <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
+                          {generateDates().map((date) => (
+                            <button
+                              key={date}
+                              onClick={() => handleDateSelect(date)}
+                              className={`py-2 px-3 rounded-lg font-semibold transition ${
+                                selectedDate === date
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                              }`}
+                            >
+                              {new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-3">
+                        <button 
+                          onClick={() => setBookingStep(1)} 
+                          className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+                        >
+                          Retour
+                        </button>
+                        <button 
+                          onClick={handleConfirmDate} 
+                          disabled={!selectedDate} 
+                          className={`px-4 py-2 rounded-lg text-white font-semibold transition ${
+                            selectedDate ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer' : 'bg-gray-400 cursor-not-allowed'
+                          }`}
+                        >
+                          Continuer
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Étape 3: Sélection de l'heure */}
+                  {bookingStep === 3 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Étape 3: Sélectionnez l'heure</h3>
+                      <p className="text-sm text-gray-600 mb-4">
+                        Date sélectionnée: {new Date(selectedDate).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                      </p>
+                      
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-6">
                         {mockTimeSlots.map((slot) => (
                           <button
@@ -412,9 +528,10 @@ const DoctorDashboard: React.FC = () => {
                           </button>
                         ))}
                       </div>
+
                       <div className="flex justify-end gap-3">
                         <button 
-                          onClick={() => setBookingStep(1)} 
+                          onClick={() => setBookingStep(2)} 
                           className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
                         >
                           Retour
@@ -432,33 +549,82 @@ const DoctorDashboard: React.FC = () => {
                     </div>
                   )}
 
-                  {bookingStep === 3 && (
+                  {/* Étape 4: Paiement */}
+                  {bookingStep === 4 && (
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Étape 3: Confirmation</h3>
-                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-6">
-                        <h4 className="font-semibold text-gray-900 mb-3">Détails du rendez-vous:</h4>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Étape 4: Paiement sécurisé</h3>
+                      
+                      {/* Récapitulatif */}
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+                        <h4 className="font-semibold text-gray-900 mb-3">Récapitulatif du rendez-vous</h4>
                         <div className="space-y-2 text-sm">
                           <p><strong>Patient:</strong> {selectedPatient.firstName} {selectedPatient.lastName}</p>
+                          <p><strong>Motif:</strong> {reason}</p>
+                          <p><strong>Date:</strong> {new Date(selectedDate).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
                           <p><strong>Heure:</strong> {selectedTime}</p>
-                          <p><strong>Date:</strong> {new Date().toLocaleDateString('fr-FR')}</p>
-                          <p className="mt-4 p-2 bg-green-100 text-green-800 rounded text-center font-semibold">
-                            Aucun paiement requis
-                          </p>
+                          <div className="border-t border-gray-200 mt-3 pt-3">
+                            <div className="flex justify-between items-center">
+                              <span className="font-semibold">Total à payer:</span>
+                              <span className="text-2xl font-bold text-blue-600">50 €</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Formulaire de paiement */}
+                      <div className="mb-6">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Numéro de carte
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="1234 5678 9012 3456"
+                          value={cardInfo.number}
+                          onChange={(e) => setCardInfo({ ...cardInfo, number: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4 mb-6">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Date d'expiration
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="MM/AA"
+                            value={cardInfo.date}
+                            onChange={(e) => setCardInfo({ ...cardInfo, date: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            CVV
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="123"
+                            value={cardInfo.cvv}
+                            onChange={(e) => setCardInfo({ ...cardInfo, cvv: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                          />
                         </div>
                       </div>
 
                       <div className="flex justify-end gap-3">
                         <button 
-                          onClick={() => setBookingStep(2)} 
+                          onClick={() => setBookingStep(3)} 
                           className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
                         >
                           Retour
                         </button>
                         <button 
-                          onClick={handleConfirmAppointment} 
-                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition"
+                          onClick={handlePayment} 
+                          className="px-6 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 font-semibold flex items-center gap-2"
                         >
-                          Confirmer le rendez-vous
+                          <CreditCard size={18} />
+                          Payer 50 €
                         </button>
                       </div>
                     </div>
