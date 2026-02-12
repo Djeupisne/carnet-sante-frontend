@@ -8,7 +8,7 @@ import { useNotification } from '../../context/NotificationContext'
 const AppointmentList: React.FC = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('all')
+  const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('upcoming') // Changé de 'all' à 'upcoming' par défaut
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const { showNotification } = useNotification()
 
@@ -45,21 +45,47 @@ const AppointmentList: React.FC = () => {
     }
   }
 
+  // FILTRES CORRIGÉS
   const filteredAppointments = appointments.filter(apt => {
     const now = new Date()
-    // CORRECTION : appointmentDate au lieu de date et startTime
+    now.setHours(0, 0, 0, 0) // Normalisation à minuit pour comparaison de dates
+    
     if (!apt.appointmentDate) return false
     
     const appointmentDate = new Date(apt.appointmentDate)
+    appointmentDate.setHours(0, 0, 0, 0) // Normalisation
     
     switch (filter) {
       case 'upcoming':
-        return appointmentDate >= now && apt.status !== 'cancelled'
+        // Rendez-vous avec date > aujourd'hui ET non annulés/non terminés
+        return appointmentDate >= now && 
+               apt.status !== 'cancelled' && 
+               apt.status !== 'completed' && 
+               apt.status !== 'no_show'
+      
       case 'past':
-        return appointmentDate < now || apt.status === 'cancelled' || apt.status === 'completed'
+        // Rendez-vous avec date < aujourd'hui OU annulés/terminés/non honorés
+        return appointmentDate < now || 
+               apt.status === 'cancelled' || 
+               apt.status === 'completed' || 
+               apt.status === 'no_show'
+      
+      case 'all':
       default:
+        // TOUS les rendez-vous sans exception
         return true
     }
+  })
+
+  // Tri des rendez-vous
+  const sortedAppointments = [...filteredAppointments].sort((a, b) => {
+    const dateA = new Date(a.appointmentDate).getTime()
+    const dateB = new Date(b.appointmentDate).getTime()
+    
+    if (filter === 'past') {
+      return dateB - dateA // Plus récent d'abord pour l'historique
+    }
+    return dateA - dateB // Plus proche d'abord pour à venir et tous
   })
 
   const getStatusVariant = (status: string) => {
@@ -135,7 +161,12 @@ const AppointmentList: React.FC = () => {
   const formatDate = (dateString: string): string => {
     try {
       const date = new Date(dateString)
-      return date.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+      return date.toLocaleDateString('fr-FR', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      })
     } catch {
       return 'N/A'
     }
@@ -165,8 +196,8 @@ const AppointmentList: React.FC = () => {
   }
 
   const filterOptions = [
-    { value: 'all', label: 'Tous les RDV', icon: '📋' },
     { value: 'upcoming', label: 'À venir', icon: '⏰' },
+    { value: 'all', label: 'Tous les RDV', icon: '📋' },
     { value: 'past', label: 'Historique', icon: '📊' },
   ]
 
@@ -252,7 +283,7 @@ const AppointmentList: React.FC = () => {
             </Link>
           </div>
 
-          {/* Filtres Visuels */}
+          {/* Filtres Visuels - Réorganisés pour mettre "À venir" en premier */}
           <div className="mb-10 flex gap-4 flex-wrap">
             {filterOptions.map((opt) => (
               <button
@@ -274,13 +305,26 @@ const AppointmentList: React.FC = () => {
                 }`}>
                   <span className="mr-2">{opt.icon}</span>
                   {opt.label}
+                  {opt.value === 'upcoming' && (
+                    <span className="ml-2 px-2 py-0.5 bg-white/20 rounded-full text-xs">
+                      {appointments.filter(apt => {
+                        const now = new Date()
+                        now.setHours(0, 0, 0, 0)
+                        const aptDate = new Date(apt.appointmentDate)
+                        aptDate.setHours(0, 0, 0, 0)
+                        return aptDate >= now && 
+                               apt.status !== 'cancelled' && 
+                               apt.status !== 'completed'
+                      }).length}
+                    </span>
+                  )}
                 </div>
               </button>
             ))}
           </div>
 
-          {/* Contenu */}
-          {filteredAppointments.length === 0 ? (
+          {/* Contenu - Utilisation de sortedAppointments au lieu de filteredAppointments */}
+          {sortedAppointments.length === 0 ? (
             <div className="relative rounded-2xl overflow-hidden p-16 text-center group">
               <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10"></div>
               <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_0%,rgba(255,255,255,0.03)_100%)]"></div>
@@ -317,7 +361,7 @@ const AppointmentList: React.FC = () => {
             </div>
           ) : (
             <div className="grid gap-5">
-              {filteredAppointments.map((appointment) => {
+              {sortedAppointments.map((appointment) => {
                 const statusVar = getStatusVariant(appointment.status)
                 
                 return (
@@ -354,9 +398,9 @@ const AppointmentList: React.FC = () => {
                               </div>
                               <div>
                                 <h3 className="text-xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
-                                  Dr. {appointment.doctor.firstName} {appointment.doctor.lastName}
+                                  Dr. {appointment.doctor?.firstName} {appointment.doctor?.lastName}
                                 </h3>
-                                <p className="text-white/60 text-sm font-medium">{appointment.doctor.specialty}</p>
+                                <p className="text-white/60 text-sm font-medium">{appointment.doctor?.specialty || 'Médecin'}</p>
                               </div>
                             </div>
 
@@ -388,7 +432,7 @@ const AppointmentList: React.FC = () => {
                                   <FileText className="w-5 h-5 text-pink-400 flex-shrink-0 mt-1" />
                                   <div>
                                     <p className="text-white/60 text-xs font-medium">MOTIF</p>
-                                    <p className="font-semibold text-white">{appointment.reason}</p>
+                                    <p className="font-semibold text-white">{appointment.reason || 'Non spécifié'}</p>
                                   </div>
                                 </div>
                                 {appointment.notes && (
