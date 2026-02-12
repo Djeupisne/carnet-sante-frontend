@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Doctor, AppointmentSlot, CreateAppointmentData } from '../../types/appointment'
+import { Doctor, CreateAppointmentData } from '../../types/appointment'
 import { appointmentService } from '../../services/appointmentService'
 import { useNotification } from '../../context/NotificationContext'
-import { Calendar, Clock, User, CheckCircle, ChevronRight, ArrowLeft, Heart } from 'lucide-react'
+import { Calendar, Clock, User, CheckCircle, ChevronRight, ArrowLeft, Heart, XCircle } from 'lucide-react'
 
 const BookAppointment: React.FC = () => {
   const navigate = useNavigate()
@@ -12,15 +12,28 @@ const BookAppointment: React.FC = () => {
   const [doctors, setDoctors] = useState<Doctor[]>([])
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null)
   const [selectedDate, setSelectedDate] = useState('')
-  const [availableSlots, setAvailableSlots] = useState<AppointmentSlot[]>([])
-  const [selectedSlot, setSelectedSlot] = useState<AppointmentSlot | null>(null)
+  const [availableSlots, setAvailableSlots] = useState<string[]>([])
+  const [bookedSlots, setBookedSlots] = useState<string[]>([])
+  const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     reason: '',
-    type: 'consultation'
+    type: 'in_person'
   })
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false)
   const [step, setStep] = useState(1)
-  // Commenté car non utilisé : const [hoveredDoctorId, setHoveredDoctorId] = useState<string | null>(null)
+
+  // Générer les créneaux disponibles (par défaut)
+  const generateDefaultSlots = (): string[] => {
+    const slots = []
+    for (let hour = 8; hour <= 17; hour++) {
+      if (hour !== 12) { // Pause déjeuner
+        slots.push(`${hour.toString().padStart(2, '0')}:00`)
+        slots.push(`${hour.toString().padStart(2, '0')}:30`)
+      }
+    }
+    return slots
+  }
 
   useEffect(() => {
     loadDoctors()
@@ -42,12 +55,39 @@ const BookAppointment: React.FC = () => {
   }
 
   const loadAvailableSlots = async () => {
-    if (!selectedDoctor) return
+    if (!selectedDoctor || !selectedDate) return
+    
+    setIsLoadingSlots(true)
+    setAvailableSlots([])
+    setBookedSlots([])
+    setSelectedSlot(null)
+    
     try {
-      const slots = await appointmentService.getDoctorAvailability(selectedDoctor.id, selectedDate)
-      setAvailableSlots(slots)
+      // 1. Récupérer les créneaux déjà réservés pour ce médecin à cette date
+      const booked = await appointmentService.getDoctorBookedSlots(selectedDoctor.id, selectedDate)
+      setBookedSlots(booked)
+      
+      // 2. Récupérer les créneaux disponibles (ou utiliser ceux par défaut)
+      let slots: string[]
+      try {
+        slots = await appointmentService.getDoctorAvailableSlots(selectedDoctor.id, selectedDate)
+      } catch (error) {
+        console.log('Utilisation des créneaux par défaut')
+        slots = generateDefaultSlots()
+      }
+      
+      // 3. Filtrer pour enlever les créneaux déjà réservés
+      const trulyAvailableSlots = slots.filter(slot => !booked.includes(slot))
+      setAvailableSlots(trulyAvailableSlots)
+      
     } catch (error) {
-      showNotification('Erreur lors du chargement des créneaux', 'error')
+      console.error('Erreur chargement créneaux:', error)
+      // En cas d'erreur, on génère des créneaux par défaut non réservés
+      const defaultSlots = generateDefaultSlots()
+      setAvailableSlots(defaultSlots)
+      setBookedSlots([])
+    } finally {
+      setIsLoadingSlots(false)
     }
   }
 
@@ -58,34 +98,57 @@ const BookAppointment: React.FC = () => {
 
   const handleDateSelect = (date: string) => {
     setSelectedDate(date)
+    setSelectedSlot(null)
   }
 
-  const handleSlotSelect = (slot: AppointmentSlot) => {
-    if (!slot.isAvailable) return
+  const handleSlotSelect = (slot: string) => {
+    // Vérifier une dernière fois que le créneau n'est pas réservé
+    if (bookedSlots.includes(slot)) {
+      showNotification('Ce créneau vient d\'être pris par un autre patient', 'error')
+      loadAvailableSlots() // Recharger les créneaux
+      return
+    }
     setSelectedSlot(slot)
     setStep(3)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedDoctor || !selectedSlot) return
+    if (!selectedDoctor || !selectedSlot || !selectedDate) return
+
+    // Vérification finale avant soumission
+    if (bookedSlots.includes(selectedSlot)) {
+      showNotification('Ce créneau n\'est plus disponible', 'error')
+      loadAvailableSlots()
+      return
+    }
 
     setIsLoading(true)
     try {
       const appointmentData: CreateAppointmentData = {
         doctorId: selectedDoctor.id,
-        date: selectedDate,
-        startTime: selectedSlot.startTime,
-        endTime: selectedSlot.endTime,
+        appointmentDate: `${selectedDate}T${selectedSlot}:00`,
+        duration: 30,
+        type: formData.type as 'in_person' | 'teleconsultation' | 'home_visit',
         reason: formData.reason,
-        type: formData.type
+        notes: ''
       }
 
       await appointmentService.createAppointment(appointmentData)
       showNotification('Rendez-vous pris avec succès!', 'success')
       navigate('/appointments')
-    } catch (error) {
-      showNotification('Erreur lors de la prise de rendez-vous', 'error')
+    } catch (error: any) {
+      console.error('Erreur création rendez-vous:', error)
+      
+      // Gérer spécifiquement l'erreur de créneau déjà pris
+      if (error.response?.data?.message?.includes('already booked') || 
+          error.response?.data?.message?.includes('déjà réservé')) {
+        showNotification('Ce créneau vient d\'être pris. Veuillez en choisir un autre.', 'error')
+        loadAvailableSlots() // Recharger les créneaux disponibles
+        setStep(2) // Retourner à l'étape de sélection
+      } else {
+        showNotification('Erreur lors de la prise de rendez-vous', 'error')
+      }
     } finally {
       setIsLoading(false)
     }
@@ -98,11 +161,22 @@ const BookAppointment: React.FC = () => {
     for (let i = 0; i < 30; i++) {
       const date = new Date(today)
       date.setDate(today.getDate() + i)
+      // Exclure dimanche (0) et samedi (6)
       if (date.getDay() !== 0 && date.getDay() !== 6) {
         dates.push(date.toISOString().split('T')[0])
       }
     }
     return dates
+  }
+
+  // Vérifier si un créneau est disponible
+  const isSlotAvailable = (slot: string): boolean => {
+    return availableSlots.includes(slot) && !bookedSlots.includes(slot)
+  }
+
+  // Compter le nombre de créneaux disponibles
+  const getAvailableSlotsCount = (): number => {
+    return availableSlots.filter(slot => !bookedSlots.includes(slot)).length
   }
 
   return (
@@ -188,19 +262,17 @@ const BookAppointment: React.FC = () => {
                 {doctors.map((doctor) => (
                   <div
                     key={doctor.id}
-                    // Commenté car non utilisé : onMouseEnter={() => setHoveredDoctorId(doctor.id)}
-                    // Commenté car non utilisé : onMouseLeave={() => setHoveredDoctorId(null)}
                     onClick={() => handleDoctorSelect(doctor)}
                     className="group relative cursor-pointer"
                   >
-                    <div className={`absolute -inset-0.5 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-2xl blur-lg opacity-0 group-hover:opacity-60 transition-all duration-500`}></div>
+                    <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-2xl blur-lg opacity-0 group-hover:opacity-60 transition-all duration-500"></div>
                     
                     <div className="relative bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border border-white/10 group-hover:border-white/30 rounded-2xl p-8 transition-all duration-300 group-hover:bg-gradient-to-br group-hover:from-white/20 group-hover:to-white/10">
                       <div className="flex items-start gap-6">
                         <div className="relative">
                           <div className="absolute inset-0 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-2xl blur-lg opacity-50 group-hover:opacity-100 transition-all"></div>
                           <div className="relative w-16 h-16 bg-gradient-to-br from-cyan-400 to-purple-600 rounded-2xl flex items-center justify-center text-2xl font-bold text-white">
-                            {doctor.firstName[0]}{doctor.lastName[0]}
+                            {doctor.firstName?.[0]}{doctor.lastName?.[0]}
                           </div>
                         </div>
 
@@ -211,21 +283,10 @@ const BookAppointment: React.FC = () => {
                           <p className="text-cyan-300 font-semibold text-sm mb-4">{doctor.specialty}</p>
                           
                           <div className="space-y-2 text-sm">
-                            {/* Commenté car non présent dans l'interface Doctor */}
-                            {/* <div className="flex items-center gap-2 text-white/70">
-                              <span className="w-1 h-1 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full"></span>
-                              <span><strong>{doctor.experience}</strong> ans d'expérience</span>
-                            </div> */}
                             <div className="flex items-center gap-2 text-white/70">
                               <span className="w-1 h-1 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full"></span>
-                              <span><strong>{doctor.consultationPrice}€</strong> la consultation</span>
+                              <span><strong>{doctor.consultationPrice || 50}€</strong> la consultation</span>
                             </div>
-                            {doctor.rating && (
-                              <div className="flex items-center gap-2 text-white/70">
-                                <span className="w-1 h-1 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full"></span>
-                                <span>⭐ <strong>{doctor.rating}</strong> {/* doctor.totalReviews pas dans l'interface */}</span>
-                              </div>
-                            )}
                           </div>
                         </div>
 
@@ -259,7 +320,7 @@ const BookAppointment: React.FC = () => {
                   className="text-white/60 hover:text-white transition text-sm font-semibold flex items-center gap-2"
                 >
                   <ArrowLeft className="w-4 h-4" />
-                  Changer
+                  Changer de médecin
                 </button>
               </div>
 
@@ -268,7 +329,7 @@ const BookAppointment: React.FC = () => {
                 <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 to-purple-600/10"></div>
                 <div className="relative flex items-center gap-6">
                   <div className="w-12 h-12 bg-gradient-to-br from-cyan-400 to-purple-600 rounded-xl flex items-center justify-center text-xl font-bold text-white">
-                    {selectedDoctor.firstName[0]}{selectedDoctor.lastName[0]}
+                    {selectedDoctor.firstName?.[0]}{selectedDoctor.lastName?.[0]}
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-white">Dr. {selectedDoctor.firstName} {selectedDoctor.lastName}</h3>
@@ -284,80 +345,145 @@ const BookAppointment: React.FC = () => {
                   Sélectionnez une date
                 </label>
                 <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
-                  {generateDates().map((date) => (
-                    <button
-                      key={date}
-                      onClick={() => handleDateSelect(date)}
-                      className={`relative group overflow-hidden rounded-xl p-4 font-semibold transition-all duration-300 ${
-                        selectedDate === date
-                          ? 'ring-2 ring-cyan-400'
-                          : ''
-                      }`}
-                    >
-                      <div className={`absolute inset-0 transition-all ${
-                        selectedDate === date
-                          ? 'bg-gradient-to-br from-cyan-500 to-purple-600'
-                          : 'bg-white/10 group-hover:bg-white/20'
-                      }`}></div>
-                      <div className="relative text-center">
-                        <div className={`text-xs font-semibold ${selectedDate === date ? 'text-white' : 'text-white/70'}`}>
-                          {new Date(date).toLocaleDateString('fr-FR', { weekday: 'short' })}
+                  {generateDates().map((date) => {
+                    const dateObj = new Date(date)
+                    const isToday = date === new Date().toISOString().split('T')[0]
+                    
+                    return (
+                      <button
+                        key={date}
+                        onClick={() => handleDateSelect(date)}
+                        className={`relative group overflow-hidden rounded-xl p-4 font-semibold transition-all duration-300 ${
+                          selectedDate === date
+                            ? 'ring-2 ring-cyan-400'
+                            : ''
+                        }`}
+                      >
+                        <div className={`absolute inset-0 transition-all ${
+                          selectedDate === date
+                            ? 'bg-gradient-to-br from-cyan-500 to-purple-600'
+                            : isToday
+                            ? 'bg-white/20 group-hover:bg-white/30'
+                            : 'bg-white/10 group-hover:bg-white/20'
+                        }`}></div>
+                        <div className="relative text-center">
+                          <div className={`text-xs font-semibold ${selectedDate === date ? 'text-white' : 'text-white/70'}`}>
+                            {dateObj.toLocaleDateString('fr-FR', { weekday: 'short' })}
+                          </div>
+                          <div className={`text-lg font-black ${selectedDate === date ? 'text-white' : 'text-white/80'}`}>
+                            {dateObj.getDate()}
+                          </div>
+                          <div className={`text-xs ${selectedDate === date ? 'text-white/90' : 'text-white/50'}`}>
+                            {dateObj.toLocaleDateString('fr-FR', { month: 'short' })}
+                          </div>
                         </div>
-                        <div className={`text-lg font-black ${selectedDate === date ? 'text-white' : 'text-white/80'}`}>
-                          {new Date(date).getDate()}
-                        </div>
-                        <div className={`text-xs ${selectedDate === date ? 'text-white/90' : 'text-white/50'}`}>
-                          {new Date(date).toLocaleDateString('fr-FR', { month: 'short' })}
-                        </div>
-                      </div>
-                    </button>
-                  ))}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
 
               {/* Créneaux horaires */}
               {selectedDate && (
                 <div>
-                  <label className="block text-lg font-bold text-white mb-6 flex items-center gap-2">
-                    <Clock className="w-6 h-6 text-purple-400" />
-                    Créneaux disponibles
-                  </label>
-                  <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-                    {availableSlots.map((slot, index) => (
-                      <button
-                        key={index}
-                        onClick={() => handleSlotSelect(slot)}
-                        disabled={!slot.isAvailable}
-                        className={`relative group rounded-xl p-3 font-semibold transition-all duration-300 overflow-hidden ${
-                          !slot.isAvailable ? 'cursor-not-allowed' : 'cursor-pointer'
-                        }`}
-                      >
-                        <div className={`absolute inset-0 transition-all ${
-                          !slot.isAvailable
-                            ? 'bg-white/5'
-                            : selectedSlot?.startTime === slot.startTime
-                            ? 'bg-gradient-to-br from-cyan-500 to-purple-600'
-                            : 'bg-white/10 group-hover:bg-white/20'
-                        }`}></div>
-                        <div className={`relative text-center ${
-                          !slot.isAvailable
-                            ? 'text-white/30'
-                            : selectedSlot?.startTime === slot.startTime
-                            ? 'text-white'
-                            : 'text-white/70'
-                        }`}>
-                          {slot.startTime}
-                        </div>
-                      </button>
-                    ))}
+                  <div className="flex items-center justify-between mb-6">
+                    <label className="block text-lg font-bold text-white flex items-center gap-2">
+                      <Clock className="w-6 h-6 text-purple-400" />
+                      {isLoadingSlots ? 'Chargement des créneaux...' : 'Créneaux disponibles'}
+                    </label>
+                    {!isLoadingSlots && (
+                      <span className="text-sm text-white/60">
+                        {getAvailableSlotsCount()} créneau(x) disponible(s)
+                      </span>
+                    )}
                   </div>
+                  
+                  {isLoadingSlots ? (
+                    <div className="flex justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
+                    </div>
+                  ) : getAvailableSlotsCount() === 0 ? (
+                    <div className="text-center py-12 bg-white/5 rounded-xl border border-white/10">
+                      <XCircle className="w-12 h-12 text-white/30 mx-auto mb-4" />
+                      <p className="text-white/70 font-medium">Aucun créneau disponible pour cette date</p>
+                      <p className="text-white/50 text-sm mt-2">Veuillez sélectionner une autre date</p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Créneaux du matin */}
+                      <div className="mb-6">
+                        <h4 className="text-white/60 text-sm font-semibold mb-3">MATIN</h4>
+                        <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+                          {availableSlots
+                            .filter(slot => !bookedSlots.includes(slot) && parseInt(slot) < 12)
+                            .map((slot) => (
+                              <button
+                                key={slot}
+                                onClick={() => handleSlotSelect(slot)}
+                                className={`relative group rounded-xl p-3 font-semibold transition-all duration-300 overflow-hidden ${
+                                  selectedSlot === slot
+                                    ? 'ring-2 ring-cyan-400'
+                                    : ''
+                                }`}
+                              >
+                                <div className={`absolute inset-0 transition-all ${
+                                  selectedSlot === slot
+                                    ? 'bg-gradient-to-br from-cyan-500 to-purple-600'
+                                    : 'bg-white/10 group-hover:bg-white/20'
+                                }`}></div>
+                                <div className={`relative text-center ${
+                                  selectedSlot === slot
+                                    ? 'text-white'
+                                    : 'text-white/70'
+                                }`}>
+                                  {slot}
+                                </div>
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+
+                      {/* Créneaux de l'après-midi */}
+                      <div>
+                        <h4 className="text-white/60 text-sm font-semibold mb-3">APRÈS-MIDI</h4>
+                        <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+                          {availableSlots
+                            .filter(slot => !bookedSlots.includes(slot) && parseInt(slot) >= 12)
+                            .map((slot) => (
+                              <button
+                                key={slot}
+                                onClick={() => handleSlotSelect(slot)}
+                                className={`relative group rounded-xl p-3 font-semibold transition-all duration-300 overflow-hidden ${
+                                  selectedSlot === slot
+                                    ? 'ring-2 ring-cyan-400'
+                                    : ''
+                                }`}
+                              >
+                                <div className={`absolute inset-0 transition-all ${
+                                  selectedSlot === slot
+                                    ? 'bg-gradient-to-br from-cyan-500 to-purple-600'
+                                    : 'bg-white/10 group-hover:bg-white/20'
+                                }`}></div>
+                                <div className={`relative text-center ${
+                                  selectedSlot === slot
+                                    ? 'text-white'
+                                    : 'text-white/70'
+                                }`}>
+                                  {slot}
+                                </div>
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
           )}
 
           {/* Étape 3: Confirmation */}
-          {step === 3 && selectedDoctor && selectedSlot && (
+          {step === 3 && selectedDoctor && selectedSlot && selectedDate && (
             <div className="space-y-8">
               <h2 className="text-4xl font-black">
                 <span className="bg-gradient-to-r from-white via-cyan-200 to-purple-200 bg-clip-text text-transparent">
@@ -385,7 +511,14 @@ const BookAppointment: React.FC = () => {
                       <Calendar className="w-6 h-6 text-purple-400 flex-shrink-0 mt-1" />
                       <div>
                         <p className="text-white/60 text-sm font-semibold mb-1">DATE</p>
-                        <p className="text-lg font-bold text-white">{new Date(selectedDate).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                        <p className="text-lg font-bold text-white">
+                          {new Date(selectedDate).toLocaleDateString('fr-FR', { 
+                            weekday: 'long', 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric' 
+                          })}
+                        </p>
                       </div>
                     </div>
 
@@ -393,7 +526,7 @@ const BookAppointment: React.FC = () => {
                       <Clock className="w-6 h-6 text-pink-400 flex-shrink-0 mt-1" />
                       <div>
                         <p className="text-white/60 text-sm font-semibold mb-1">HEURE</p>
-                        <p className="text-lg font-bold text-white">{selectedSlot.startTime} - {selectedSlot.endTime}</p>
+                        <p className="text-lg font-bold text-white">{selectedSlot}</p>
                       </div>
                     </div>
                   </div>
@@ -402,7 +535,9 @@ const BookAppointment: React.FC = () => {
 
                   <div className="flex items-center justify-between">
                     <p className="text-white/60">Honoraires de consultation</p>
-                    <p className="text-2xl font-black bg-gradient-to-r from-cyan-300 to-purple-300 bg-clip-text text-transparent">{selectedDoctor.consultationPrice}€</p>
+                    <p className="text-2xl font-black bg-gradient-to-r from-cyan-300 to-purple-300 bg-clip-text text-transparent">
+                      {selectedDoctor.consultationPrice || 50}€
+                    </p>
                   </div>
                 </div>
               </div>
@@ -416,10 +551,9 @@ const BookAppointment: React.FC = () => {
                     onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value }))}
                     className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
                   >
-                    <option value="consultation" className="bg-slate-900">Consultation</option>
-                    <option value="follow_up" className="bg-slate-900">Suivi</option>
-                    <option value="routine" className="bg-slate-900">Routine</option>
-                    <option value="emergency" className="bg-slate-900">Urgence</option>
+                    <option value="in_person" className="bg-slate-900">Consultation en cabinet</option>
+                    <option value="teleconsultation" className="bg-slate-900">Téléconsultation</option>
+                    <option value="home_visit" className="bg-slate-900">Visite à domicile</option>
                   </select>
                 </div>
 
@@ -429,7 +563,7 @@ const BookAppointment: React.FC = () => {
                     value={formData.reason}
                     onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
                     rows={4}
-                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white backdrop-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent resize-none placeholder:text-white/40"
+                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent resize-none placeholder:text-white/40"
                     placeholder="Décrivez le motif de votre consultation..."
                     required
                   />
@@ -446,7 +580,7 @@ const BookAppointment: React.FC = () => {
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="flex-1 relative group overflow-hidden rounded-xl px-6 py-3 font-semibold text-white disabled:opacity-50"
+                    className="flex-1 relative group overflow-hidden rounded-xl px-6 py-3 font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-purple-600 group-hover:shadow-2xl group-hover:shadow-cyan-500/50 transition-all"></div>
                     <div className="relative flex items-center justify-center gap-2">
@@ -460,16 +594,6 @@ const BookAppointment: React.FC = () => {
           )}
         </div>
       </div>
-
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
-        .animate-pulse {
-          animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-      `}</style>
     </div>
   )
 }
