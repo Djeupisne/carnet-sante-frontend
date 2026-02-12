@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from "../../context/AuthContext";
 import { calendarService } from '../../services/calendarService';
 import { userService } from '../../services/userService';
 import { appointmentService } from '../../services/appointmentService';
-import { X, Check } from 'lucide-react';
+import { X, Check, CreditCard, Calendar, Clock, User, ChevronRight, ArrowLeft } from 'lucide-react';
 
 interface Doctor {
   id: string;
@@ -13,6 +13,7 @@ interface Doctor {
   specialty: string;
   available: boolean;
   availableSlots: string[];
+  consultationPrice?: number;
 }
 
 interface Calendar {
@@ -34,6 +35,7 @@ interface Appointment {
 }
 
 const PatientDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [calendars, setCalendars] = useState<Calendar[]>([]);
@@ -45,14 +47,68 @@ const PatientDashboard: React.FC = () => {
   const [showBooking, setShowBooking] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [bookingStep, setBookingStep] = useState(1);
+  const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
-  const [cardInfo, setCardInfo] = useState({ number: '', date: '', cvv: '' });
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+  const [formData, setFormData] = useState({
+    reason: '',
+    type: 'in_person' as 'in_person' | 'teleconsultation' | 'home_visit',
+    symptoms: ''
+  });
+  const [cardInfo, setCardInfo] = useState({ 
+    number: '', 
+    date: '', 
+    cvv: '' 
+  });
 
   const medicalSummary = {
     allergies: 2,
     medications: 3,
     conditions: 1,
+  };
+
+  // ✅ Générer les dates disponibles (30 prochains jours, sauf dimanche)
+  const generateDates = () => {
+    const dates = [];
+    const today = new Date();
+    
+    for (let i = 0; i < 30; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      // Exclure dimanche (0)
+      if (date.getDay() !== 0) {
+        dates.push(date.toISOString().split('T')[0]);
+      }
+    }
+    return dates;
+  };
+
+  // ✅ Charger les créneaux disponibles quand on sélectionne un médecin et une date
+  useEffect(() => {
+    if (selectedDoctor && selectedDate) {
+      loadAvailableSlots();
+    }
+  }, [selectedDoctor, selectedDate]);
+
+  const loadAvailableSlots = async () => {
+    if (!selectedDoctor || !selectedDate) return;
+    
+    setIsLoadingSlots(true);
+    setAvailableSlots([]);
+    setSelectedTime('');
+    
+    try {
+      const slots = await appointmentService.getDoctorAvailableSlots(selectedDoctor.id, selectedDate);
+      setAvailableSlots(slots);
+    } catch (error) {
+      console.error('Erreur chargement créneaux:', error);
+      // Créneaux par défaut
+      setAvailableSlots(['09:00', '10:00', '11:00', '14:00', '15:00', '16:00']);
+    } finally {
+      setIsLoadingSlots(false);
+    }
   };
 
   const fetchAppointments = async () => {
@@ -68,7 +124,6 @@ const PatientDashboard: React.FC = () => {
       const appointments = await appointmentService.getAppointments();
       console.log('📋 Rendez-vous reçus du service:', appointments);
       
-      // Vérification de sécurité
       if (!appointments || !Array.isArray(appointments)) {
         console.warn('⚠️ Les rendez-vous ne sont pas un tableau:', appointments);
         setUpcomingAppointments([]);
@@ -81,10 +136,7 @@ const PatientDashboard: React.FC = () => {
         return;
       }
 
-      // Transformation des données avec valeurs par défaut
       const transformedAppointments: Appointment[] = appointments.map((apt: any, index: number) => {
-        console.log(`📝 Transformation du rendez-vous ${index}:`, apt);
-        
         return {
           id: apt.id || `temp-${index}`,
           doctor: {
@@ -138,7 +190,6 @@ const PatientDashboard: React.FC = () => {
         setError(null);
         
         console.log('🔄 Chargement des médecins...');
-        // Utilisez appointmentService.getDoctors() pour la cohérence
         const doctorsData = await appointmentService.getDoctors();
         
         console.log('👨‍⚕️ Médecins reçus:', doctorsData);
@@ -149,7 +200,8 @@ const PatientDashboard: React.FC = () => {
           lastName: d.lastName,
           specialty: d.specialty || 'Non spécifié',
           available: d.isActive !== false,
-          availableSlots: d.availableSlots || d.availability?.slots || ['09:00', '10:00', '11:00', '14:00', '15:00'],
+          availableSlots: d.availableSlots || ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00'],
+          consultationPrice: d.consultationPrice || 50
         }));
         
         setDoctors(fetchedDoctors);
@@ -160,7 +212,6 @@ const PatientDashboard: React.FC = () => {
         console.error('❌ Erreur lors de la récupération des données:', err);
         setError('Impossible de charger les données. Utilisation des données de secours.');
 
-        // Données simulées en cas d'erreur
         const mockDoctors: Doctor[] = [
           { 
             id: '1', 
@@ -168,7 +219,8 @@ const PatientDashboard: React.FC = () => {
             lastName: 'Dubois', 
             specialty: 'Cardiologie', 
             available: true, 
-            availableSlots: ['09:00', '10:00', '11:00', '14:00', '15:00'] 
+            availableSlots: ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00'],
+            consultationPrice: 60
           },
           { 
             id: '2', 
@@ -176,7 +228,8 @@ const PatientDashboard: React.FC = () => {
             lastName: 'Martin', 
             specialty: 'Dermatologie', 
             available: true, 
-            availableSlots: ['10:30', '14:00', '16:00'] 
+            availableSlots: ['10:30', '14:00', '16:00'],
+            consultationPrice: 55
           },
           { 
             id: '3', 
@@ -184,7 +237,8 @@ const PatientDashboard: React.FC = () => {
             lastName: 'Laurent', 
             specialty: 'Neurologie', 
             available: false, 
-            availableSlots: [] 
+            availableSlots: [],
+            consultationPrice: 70
           },
         ];
         
@@ -246,14 +300,29 @@ const PatientDashboard: React.FC = () => {
     return classMap[status as keyof typeof classMap] || classMap.pending;
   };
 
+  // ✅ Remplacer handleBookingClick par une redirection vers la page de réservation
   const handleBookingClick = (doctor: Doctor) => {
     if (!doctor.available) return;
+    // Rediriger vers la page de réservation avec l'ID du médecin
+    navigate(`/appointments/book?doctorId=${doctor.id}`);
+  };
+
+  // ✅ Modal de réservation locale (gardée pour compatibilité mais redirige maintenant)
+  const handleBookingModal = (doctor: Doctor) => {
     setSelectedDoctor(doctor);
     setShowBooking(true);
     setBookingStep(1);
+    setSelectedDate('');
     setSelectedTime('');
+    setAvailableSlots([]);
     setBookingConfirmed(false);
     setCardInfo({ number: '', date: '', cvv: '' });
+    setFormData({ reason: '', type: 'in_person', symptoms: '' });
+  };
+
+  const handleDateSelect = (date: string) => {
+    setSelectedDate(date);
+    setSelectedTime('');
   };
 
   const handleConfirmDoctor = () => {
@@ -264,17 +333,42 @@ const PatientDashboard: React.FC = () => {
     if (selectedTime) setBookingStep(3);
   };
 
-  const handlePayment = () => {
-    if (cardInfo.number && cardInfo.date && cardInfo.cvv) {
+  const handlePayment = async () => {
+    if (!cardInfo.number || !cardInfo.date || !cardInfo.cvv) {
+      alert('Veuillez remplir tous les champs de paiement');
+      return;
+    }
+
+    if (!selectedDoctor || !selectedDate || !selectedTime) {
+      alert('Informations de rendez-vous incomplètes');
+      return;
+    }
+
+    try {
+      // Créer le rendez-vous
+      const appointmentData = {
+        doctorId: selectedDoctor.id,
+        appointmentDate: `${selectedDate}T${selectedTime}:00`,
+        duration: 30,
+        type: formData.type,
+        reason: formData.reason || 'Consultation médicale',
+        notes: formData.symptoms || ''
+      };
+
+      await appointmentService.createAppointment(appointmentData);
+      
       setBookingConfirmed(true);
       setTimeout(() => {
         setShowBooking(false);
         setSelectedDoctor(null);
         setBookingStep(1);
-        alert(`Rendez-vous confirmé avec Dr. ${selectedDoctor?.firstName} ${selectedDoctor?.lastName} à ${selectedTime}`);
+        alert(`✅ Rendez-vous confirmé avec Dr. ${selectedDoctor?.firstName} ${selectedDoctor?.lastName} le ${selectedDate} à ${selectedTime}`);
+        // Recharger les rendez-vous
+        fetchAppointments();
       }, 1500);
-    } else {
-      alert('Veuillez remplir tous les champs de paiement');
+    } catch (error) {
+      console.error('Erreur lors de la création du rendez-vous:', error);
+      alert('Erreur lors de la réservation. Veuillez réessayer.');
     }
   };
 
@@ -282,9 +376,11 @@ const PatientDashboard: React.FC = () => {
     setShowBooking(false);
     setSelectedDoctor(null);
     setBookingStep(1);
+    setSelectedDate('');
     setSelectedTime('');
     setBookingConfirmed(false);
     setCardInfo({ number: '', date: '', cvv: '' });
+    setFormData({ reason: '', type: 'in_person', symptoms: '' });
   };
 
   if (!user) {
@@ -385,6 +481,7 @@ const PatientDashboard: React.FC = () => {
                     <th className="text-left py-4 px-4 font-semibold">Spécialité</th>
                     <th className="text-left py-4 px-4 font-semibold">Statut</th>
                     <th className="text-left py-4 px-4 font-semibold">Créneaux disponibles</th>
+                    <th className="text-left py-4 px-4 font-semibold">Prix</th>
                     <th className="text-left py-4 px-4 font-semibold">Action</th>
                   </tr>
                 </thead>
@@ -406,6 +503,9 @@ const PatientDashboard: React.FC = () => {
                       </td>
                       <td className="py-4 px-4 text-white/80">
                         {doctor.available ? `${doctor.availableSlots.length} créneaux` : '-'}
+                      </td>
+                      <td className="py-4 px-4 text-white/80 font-semibold">
+                        {doctor.consultationPrice}€
                       </td>
                       <td className="py-4 px-4">
                         <button
@@ -571,10 +671,10 @@ const PatientDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* MODAL DE RÉSERVATION */}
+      {/* MODAL DE RÉSERVATION COMPLÈTE (GARDÉE POUR COMPATIBILITÉ) */}
       {showBooking && selectedDoctor && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center p-6 border-b border-gray-200">
               <h2 className="text-2xl font-bold text-gray-900">Réserver un rendez-vous</h2>
               <button onClick={closeBooking} className="text-gray-500 hover:text-gray-700">
@@ -595,87 +695,205 @@ const PatientDashboard: React.FC = () => {
                 </div>
               ) : (
                 <>
+                  {/* Étape 1: Médecin sélectionné */}
                   {bookingStep === 1 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Étape 1: Médecin sélectionné</h3>
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
                         <p className="text-lg font-semibold text-gray-900">Dr. {selectedDoctor.firstName} {selectedDoctor.lastName}</p>
                         <p className="text-gray-600 mt-2">{selectedDoctor.specialty}</p>
+                        <p className="text-gray-600 mt-2">Tarif: {selectedDoctor.consultationPrice || 50}€</p>
+                      </div>
+                      <div className="mb-6">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Motif de la consultation
+                        </label>
+                        <textarea
+                          value={formData.reason}
+                          onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                          rows={3}
+                          placeholder="Décrivez brièvement le motif de votre consultation..."
+                        />
                       </div>
                       <div className="flex justify-end gap-3">
-                        <button onClick={closeBooking} className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Annuler</button>
-                        <button onClick={handleConfirmDoctor} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold">Continuer</button>
-                      </div>
-                    </div>
-                  )}
-
-                  {bookingStep === 2 && (
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Étape 2: Sélectionnez l'heure</h3>
-                      <div className="grid grid-cols-4 gap-2 mb-6">
-                        {selectedDoctor.availableSlots.map((slot) => (
-                          <button
-                            key={slot}
-                            onClick={() => setSelectedTime(slot)}
-                            className={`py-2 px-3 rounded-lg font-semibold transition ${
-                              selectedTime === slot
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-                            }`}
-                          >
-                            {slot}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="flex justify-end gap-3">
-                        <button onClick={closeBooking} className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Annuler</button>
-                        <button onClick={handleConfirmTime} disabled={!selectedTime} className={`px-4 py-2 rounded-lg text-white font-semibold ${
-                          selectedTime ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer' : 'bg-gray-400 cursor-not-allowed'
-                        }`}>
+                        <button onClick={closeBooking} className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                          Annuler
+                        </button>
+                        <button 
+                          onClick={handleConfirmDoctor} 
+                          disabled={!formData.reason}
+                          className={`px-4 py-2 rounded-lg text-white font-semibold ${
+                            formData.reason 
+                              ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer' 
+                              : 'bg-gray-400 cursor-not-allowed'
+                          }`}
+                        >
                           Continuer
                         </button>
                       </div>
                     </div>
                   )}
 
-                  {bookingStep === 3 && (
+                  {/* Étape 2: Sélection de la date et heure */}
+                  {bookingStep === 2 && (
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Étape 3: Paiement</h3>
-                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
-                        <p className="text-sm text-gray-600 mb-2">Dr. {selectedDoctor.firstName} {selectedDoctor.lastName}</p>
-                        <p className="text-sm text-gray-600">Heure: {selectedTime}</p>
-                        <p className="text-lg font-bold text-gray-900 mt-4">Montant: 50 €</p>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Étape 2: Sélectionnez la date et l'heure</h3>
+                      
+                      {/* Sélection de la date */}
+                      <div className="mb-6">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Date du rendez-vous
+                        </label>
+                        <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
+                          {generateDates().map((date) => (
+                            <button
+                              key={date}
+                              onClick={() => handleDateSelect(date)}
+                              className={`py-2 px-3 rounded-lg font-semibold transition ${
+                                selectedDate === date
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                              }`}
+                            >
+                              {new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                            </button>
+                          ))}
+                        </div>
                       </div>
 
-                      <div className="space-y-4 mb-6">
+                      {/* Sélection de l'heure */}
+                      {selectedDate && (
+                        <div className="mb-6">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Heure du rendez-vous
+                          </label>
+                          {isLoadingSlots ? (
+                            <div className="text-center py-4">
+                              <p className="text-gray-500">Chargement des créneaux...</p>
+                            </div>
+                          ) : availableSlots.length === 0 ? (
+                            <div className="text-center py-4">
+                              <p className="text-gray-500">Aucun créneau disponible pour cette date</p>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-4 gap-2">
+                              {availableSlots.map((slot) => (
+                                <button
+                                  key={slot}
+                                  onClick={() => setSelectedTime(slot)}
+                                  className={`py-2 px-3 rounded-lg font-semibold transition ${
+                                    selectedTime === slot
+                                      ? 'bg-blue-600 text-white'
+                                      : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                                  }`}
+                                >
+                                  {slot}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="flex justify-end gap-3">
+                        <button 
+                          onClick={() => setBookingStep(1)} 
+                          className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                        >
+                          Retour
+                        </button>
+                        <button 
+                          onClick={handleConfirmTime} 
+                          disabled={!selectedTime} 
+                          className={`px-4 py-2 rounded-lg text-white font-semibold ${
+                            selectedTime ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer' : 'bg-gray-400 cursor-not-allowed'
+                          }`}
+                        >
+                          Continuer
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Étape 3: Paiement */}
+                  {bookingStep === 3 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Étape 3: Paiement sécurisé</h3>
+                      
+                      {/* Récapitulatif */}
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+                        <h4 className="font-semibold text-gray-900 mb-3">Récapitulatif du rendez-vous</h4>
+                        <div className="space-y-2 text-sm">
+                          <p><strong>Médecin:</strong> Dr. {selectedDoctor.firstName} {selectedDoctor.lastName}</p>
+                          <p><strong>Spécialité:</strong> {selectedDoctor.specialty}</p>
+                          <p><strong>Date:</strong> {new Date(selectedDate).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                          <p><strong>Heure:</strong> {selectedTime}</p>
+                          <p><strong>Motif:</strong> {formData.reason}</p>
+                          <div className="border-t border-gray-200 mt-3 pt-3">
+                            <div className="flex justify-between items-center">
+                              <span className="font-semibold">Total à payer:</span>
+                              <span className="text-2xl font-bold text-blue-600">{selectedDoctor.consultationPrice || 50} €</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Formulaire de paiement */}
+                      <div className="mb-6">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Numéro de carte
+                        </label>
                         <input
                           type="text"
-                          placeholder="Numéro de carte"
+                          placeholder="1234 5678 9012 3456"
                           value={cardInfo.number}
                           onChange={(e) => setCardInfo({ ...cardInfo, number: e.target.value })}
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
                         />
-                        <div className="grid grid-cols-2 gap-4">
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4 mb-6">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Date d'expiration
+                          </label>
                           <input
                             type="text"
-                            placeholder="MM/YY"
+                            placeholder="MM/AA"
                             value={cardInfo.date}
                             onChange={(e) => setCardInfo({ ...cardInfo, date: e.target.value })}
-                            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
                           />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            CVV
+                          </label>
                           <input
                             type="text"
-                            placeholder="CVV"
+                            placeholder="123"
                             value={cardInfo.cvv}
                             onChange={(e) => setCardInfo({ ...cardInfo, cvv: e.target.value })}
-                            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
                           />
                         </div>
                       </div>
 
                       <div className="flex justify-end gap-3">
-                        <button onClick={closeBooking} className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Annuler</button>
-                        <button onClick={handlePayment} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold">Payer 50 €</button>
+                        <button 
+                          onClick={() => setBookingStep(2)} 
+                          className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                        >
+                          Retour
+                        </button>
+                        <button 
+                          onClick={handlePayment} 
+                          className="px-6 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 font-semibold flex items-center gap-2"
+                        >
+                          <CreditCard size={18} />
+                          Payer {selectedDoctor.consultationPrice || 50} €
+                        </button>
                       </div>
                     </div>
                   )}
