@@ -19,7 +19,8 @@ export interface Doctor {
   specialty: string
   isActive: boolean
   availableSlots?: string[]
-  bookedSlots?: string[] // ✅ Nouveaux créneaux réservés
+  bookedSlots?: string[]
+  consultationPrice?: number
 }
 
 export interface CreateAppointmentData {
@@ -33,7 +34,7 @@ export interface CreateAppointmentData {
 
 export const appointmentService = {
   /**
-   * Créer un nouveau rendez-vous
+   * ✅ Créer un nouveau rendez-vous
    */
   async createAppointment(data: CreateAppointmentData): Promise<Appointment> {
     try {
@@ -53,7 +54,7 @@ export const appointmentService = {
   },
 
   /**
-   * Récupérer tous les rendez-vous de l'utilisateur connecté
+   * ✅ Récupérer tous les rendez-vous de l'utilisateur connecté
    */
   async getAppointments(): Promise<Appointment[]> {
     try {
@@ -74,7 +75,7 @@ export const appointmentService = {
   },
 
   /**
-   * Récupérer un rendez-vous par ID
+   * ✅ Récupérer un rendez-vous par ID
    */
   async getAppointmentById(id: string): Promise<Appointment> {
     try {
@@ -93,12 +94,15 @@ export const appointmentService = {
   },
 
   /**
-   * ✅ NOUVEAU : Récupérer les créneaux disponibles d'un médecin pour une date donnée
+   * ✅ Récupérer les créneaux disponibles d'un médecin pour une date donnée
+   * ✅ CORRIGÉ: Utilise /calendars/ au lieu de /appointments/
    */
   async getDoctorAvailableSlots(doctorId: string, date: string): Promise<string[]> {
     try {
       console.log('🕐 Récupération des créneaux disponibles:', { doctorId, date })
-      const response = await api.get(`/appointments/available-slots/${doctorId}`, {
+      
+      // ✅ URL CORRECTE - Utilise le service Calendar
+      const response = await api.get(`/calendars/available-slots/${doctorId}`, {
         params: { date }
       })
       
@@ -111,18 +115,26 @@ export const appointmentService = {
       return availableSlots
     } catch (error: any) {
       console.error('❌ Erreur récupération créneaux:', error)
-      // En cas d'erreur, retourner des créneaux par défaut
-      return ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00']
+      
+      // ✅ Créneaux par défaut en cas d'erreur
+      const defaultSlots = [
+        '09:00', '10:00', '11:00', '14:00', '15:00', '16:00'
+      ]
+      console.log('⚠️ Utilisation des créneaux par défaut:', defaultSlots)
+      return defaultSlots
     }
   },
 
   /**
-   * ✅ NOUVEAU : Récupérer les créneaux occupés d'un médecin pour une date donnée
+   * ✅ Récupérer les créneaux occupés d'un médecin pour une date donnée
+   * ✅ CORRIGÉ: Utilise /calendars/ au lieu de /appointments/
    */
   async getDoctorBookedSlots(doctorId: string, date: string): Promise<string[]> {
     try {
       console.log('🚫 Récupération des créneaux occupés:', { doctorId, date })
-      const response = await api.get(`/appointments/booked-slots/${doctorId}`, {
+      
+      // ✅ URL CORRECTE - Utilise le service Calendar
+      const response = await api.get(`/calendars/booked-slots/${doctorId}`, {
         params: { date }
       })
       
@@ -140,7 +152,7 @@ export const appointmentService = {
   },
 
   /**
-   * Récupérer la liste des médecins
+   * ✅ Récupérer la liste des médecins
    */
   async getDoctors(): Promise<Doctor[]> {
     try {
@@ -161,7 +173,7 @@ export const appointmentService = {
   },
 
   /**
-   * Annuler un rendez-vous
+   * ✅ Annuler un rendez-vous
    */
   async cancelAppointment(id: string, reason?: string): Promise<void> {
     try {
@@ -180,7 +192,7 @@ export const appointmentService = {
   },
 
   /**
-   * Confirmer un rendez-vous (pour les médecins)
+   * ✅ Confirmer un rendez-vous (pour les médecins)
    */
   async confirmAppointment(id: string): Promise<void> {
     try {
@@ -199,7 +211,7 @@ export const appointmentService = {
   },
 
   /**
-   * Marquer un rendez-vous comme terminé
+   * ✅ Marquer un rendez-vous comme terminé
    */
   async completeAppointment(id: string, notes?: string): Promise<void> {
     try {
