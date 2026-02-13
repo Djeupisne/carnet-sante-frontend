@@ -8,7 +8,7 @@ import { useNotification } from '../../context/NotificationContext'
 const AppointmentList: React.FC = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('upcoming') // Changé de 'all' à 'upcoming' par défaut
+  const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('upcoming')
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const { showNotification } = useNotification()
 
@@ -48,23 +48,21 @@ const AppointmentList: React.FC = () => {
   // FILTRES CORRIGÉS
   const filteredAppointments = appointments.filter(apt => {
     const now = new Date()
-    now.setHours(0, 0, 0, 0) // Normalisation à minuit pour comparaison de dates
+    now.setHours(0, 0, 0, 0)
     
     if (!apt.appointmentDate) return false
     
     const appointmentDate = new Date(apt.appointmentDate)
-    appointmentDate.setHours(0, 0, 0, 0) // Normalisation
+    appointmentDate.setHours(0, 0, 0, 0)
     
     switch (filter) {
       case 'upcoming':
-        // Rendez-vous avec date > aujourd'hui ET non annulés/non terminés
         return appointmentDate >= now && 
                apt.status !== 'cancelled' && 
                apt.status !== 'completed' && 
                apt.status !== 'no_show'
       
       case 'past':
-        // Rendez-vous avec date < aujourd'hui OU annulés/terminés/non honorés
         return appointmentDate < now || 
                apt.status === 'cancelled' || 
                apt.status === 'completed' || 
@@ -72,7 +70,6 @@ const AppointmentList: React.FC = () => {
       
       case 'all':
       default:
-        // TOUS les rendez-vous sans exception
         return true
     }
   })
@@ -83,44 +80,44 @@ const AppointmentList: React.FC = () => {
     const dateB = new Date(b.appointmentDate).getTime()
     
     if (filter === 'past') {
-      return dateB - dateA // Plus récent d'abord pour l'historique
+      return dateB - dateA
     }
-    return dateA - dateB // Plus proche d'abord pour à venir et tous
+    return dateA - dateB
   })
 
   const getStatusVariant = (status: string) => {
     const variants = {
       confirmed: { 
         gradient: 'from-emerald-400 to-teal-500', 
-        light: 'from-emerald-50 to-teal-50',
+        light: 'from-emerald-400 to-teal-500',
         border: 'border-emerald-200',
         text: 'text-emerald-700',
         badge: 'bg-emerald-100 text-emerald-700'
       },
       pending: { 
         gradient: 'from-cyan-400 to-blue-500',
-        light: 'from-cyan-50 to-blue-50',
+        light: 'from-cyan-400 to-blue-500',
         border: 'border-cyan-200',
         text: 'text-cyan-700',
         badge: 'bg-cyan-100 text-cyan-700'
       },
       completed: { 
         gradient: 'from-slate-400 to-slate-500',
-        light: 'from-slate-50 to-slate-50',
+        light: 'from-slate-400 to-slate-500',
         border: 'border-slate-200',
         text: 'text-slate-700',
         badge: 'bg-slate-100 text-slate-700'
       },
       cancelled: { 
         gradient: 'from-rose-400 to-red-500',
-        light: 'from-rose-50 to-red-50',
+        light: 'from-rose-400 to-red-500',
         border: 'border-rose-200',
         text: 'text-rose-700',
         badge: 'bg-rose-100 text-rose-700'
       },
       no_show: { 
         gradient: 'from-amber-400 to-orange-500',
-        light: 'from-amber-50 to-orange-50',
+        light: 'from-amber-400 to-orange-500',
         border: 'border-amber-200',
         text: 'text-amber-700',
         badge: 'bg-amber-100 text-amber-700'
@@ -283,7 +280,7 @@ const AppointmentList: React.FC = () => {
             </Link>
           </div>
 
-          {/* Filtres Visuels - Réorganisés pour mettre "À venir" en premier */}
+          {/* Filtres Visuels */}
           <div className="mb-10 flex gap-4 flex-wrap">
             {filterOptions.map((opt) => (
               <button
@@ -323,7 +320,7 @@ const AppointmentList: React.FC = () => {
             ))}
           </div>
 
-          {/* Contenu - Utilisation de sortedAppointments au lieu de filteredAppointments */}
+          {/* Contenu */}
           {sortedAppointments.length === 0 ? (
             <div className="relative rounded-2xl overflow-hidden p-16 text-center group">
               <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10"></div>
@@ -371,18 +368,20 @@ const AppointmentList: React.FC = () => {
                     onMouseLeave={() => setHoveredId(null)}
                     className="relative group cursor-pointer"
                   >
-                    {/* Glow background */}
-                    <div className={`absolute -inset-0.5 bg-gradient-to-r ${statusVar.gradient} rounded-2xl blur-lg opacity-0 group-hover:opacity-50 transition-all duration-500`}></div>
+                    {/* Glow background subtil */}
+                    <div className={`absolute -inset-0.5 bg-gradient-to-r ${statusVar.gradient} rounded-2xl blur-md opacity-0 group-hover:opacity-30 transition-all duration-500`}></div>
                     
-                    {/* Card */}
-                    <div className={`relative rounded-2xl backdrop-blur-xl border overflow-hidden transition-all duration-500 ${
+                    {/* Card avec survol adouci */}
+                    <div className={`relative rounded-2xl backdrop-blur-xl border overflow-hidden transition-all duration-300 ${
                       hoveredId === appointment.id
-                        ? `bg-gradient-to-br ${statusVar.light} ${statusVar.border} border-white/30 shadow-2xl`
-                        : `bg-white/5 ${statusVar.border} border-white/10 hover:border-white/20`
+                        ? 'bg-white/10 border-white/30 shadow-xl scale-[1.01]'
+                        : 'bg-white/5 border-white/10'
                     }`}>
                       
-                      {/* Gradient overlay */}
-                      <div className={`absolute inset-0 bg-gradient-to-br ${statusVar.light} opacity-0 group-hover:opacity-20 transition-all`}></div>
+                      {/* Gradient overlay très subtil */}
+                      {hoveredId === appointment.id && (
+                        <div className={`absolute inset-0 bg-gradient-to-br ${statusVar.light} opacity-10`}></div>
+                      )}
 
                       <div className="relative p-8">
                         <div className="flex items-start justify-between gap-6">
