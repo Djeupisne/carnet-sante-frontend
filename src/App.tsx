@@ -13,6 +13,7 @@ import PatientDashboard from './components/Dashboard/PatientDashboard'
 import DoctorDashboard from './components/Dashboard/DoctorDashboard'
 import AppointmentList from './components/Appointments/AppointmentList'
 import BookAppointment from './components/Appointments/BookAppointment'
+import AppointmentDetails from './pages/AppointmentDetails'  // ✅ NOUVEL IMPORT
 import ProtectedRoute from './components/Auth/ProtectedRoute'
 import NotFoundPage from './pages/NotFoundPage'
 
@@ -103,22 +104,12 @@ function App() {
                 } 
               />
               
+              {/* ✅ NOUVELLE ROUTE - Détails du rendez-vous */}
               <Route 
                 path="/appointments/:id" 
                 element={
                   <ProtectedRoute>
-                    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                      <div className="bg-white p-8 rounded-lg shadow-sm text-center">
-                        <h1 className="text-2xl font-bold text-gray-900 mb-4">Détails du Rendez-vous</h1>
-                        <p className="text-gray-600 mb-4">Page en cours de développement</p>
-                        <button 
-                          onClick={() => window.history.back()}
-                          className="text-blue-600 hover:text-blue-700 font-medium"
-                        >
-                          Retour
-                        </button>
-                      </div>
-                    </div>
+                    <AppointmentDetails />
                   </ProtectedRoute>
                 } 
               />
