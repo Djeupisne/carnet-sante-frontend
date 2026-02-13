@@ -56,22 +56,25 @@ const DoctorDashboard: React.FC = () => {
     totalPatients: 0,
   });
 
-  // ============================================
-  // GESTION DE LA DÉCONNEXION
-  // ============================================
 
-  const handleLogout = async () => {
-    if (window.confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
-      try {
-        await logout();
-        showNotification('✅ Déconnexion réussie', 'success');
-        navigate('/login');
-      } catch (error) {
-        console.error('❌ Erreur lors de la déconnexion:', error);
-        showNotification('❌ Erreur lors de la déconnexion', 'error');
-      }
+
+// ============================================
+// GESTION DE LA DÉCONNEXION - CORRIGÉE
+// ============================================
+
+const handleLogout = async () => {
+  if (window.confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
+    try {
+      await logout();
+      showNotification('✅ Déconnexion réussie', 'success');
+      // ✅ CORRECTION: Rediriger vers la page d'accueil (/) au lieu de /login
+      navigate('/');
+    } catch (error) {
+      console.error('❌ Erreur lors de la déconnexion:', error);
+      showNotification('❌ Erreur lors de la déconnexion', 'error');
     }
-  };
+  }
+};
 
   // ============================================
   // RÉCUPÉRATION DES DONNÉES
