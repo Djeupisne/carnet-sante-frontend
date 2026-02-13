@@ -256,7 +256,7 @@ const AppointmentList: React.FC = () => {
             <div>
               <div className="mb-4 flex items-center gap-3">
                 <div className="w-2 h-2 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full"></div>
-                <span className="text-sm font-semibold text-cyan-300">VOS RENDEZ-VOUS MÉDICAUX</span>
+                <span className="text-sm font-semibold text-cyan-300"></span>
               </div>
               <h2 className="text-5xl font-black mb-3">
                 <span className="bg-gradient-to-r from-white via-cyan-200 to-purple-200 bg-clip-text text-transparent">
@@ -265,7 +265,7 @@ const AppointmentList: React.FC = () => {
               </h2>
               <p className="text-white/60 text-lg flex items-center gap-2">
                 <span className="inline-block w-1 h-4 bg-gradient-to-b from-cyan-400 to-transparent rounded-full"></span>
-                Accédez à tous vos rendez-vous et gérez votre suivi médical en un seul endroit
+                
               </p>
             </div>
             <Link
