@@ -2,37 +2,60 @@ import React from 'react'
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom'
 import { Provider } from 'react-redux'
 import { store } from './store/store'
-import { AuthProvider } from './context/AuthContext'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import { NotificationProvider } from './context/NotificationContext'
-import { useAuth } from './context/AuthContext'
 
 // Pages
 import HomePage from './pages/HomePage'
 import Login from './components/Auth/Login'
 import Register from './components/Auth/Register'
 import PatientDashboard from './components/Dashboard/PatientDashboard'
-import DoctorDashboard from './components/Dashboard/DoctorDashboard' // ✅ AJOUTER CET IMPORT !
+import DoctorDashboard from './components/Dashboard/DoctorDashboard' // ✅ IMPORTANT !
 import AppointmentList from './components/Appointments/AppointmentList'
 import BookAppointment from './components/Appointments/BookAppointment'
-import ProtectedRoute from './components/Auth/ProtectedRoute'
+import ProtectedRoute from './components/Auth/ProtectedRoute' // ✅ DÉJÀ CORRECT
 import NotFoundPage from './pages/NotFoundPage'
 
 // ✅ COMPOSANT DE REDIRECTION SELON LE RÔLE
 const DashboardRouter: React.FC = () => {
   const { user } = useAuth();
   
+  console.log('🔐 DashboardRouter - User:', {
+    id: user?.id,
+    role: user?.role,
+    name: `${user?.firstName || ''} ${user?.lastName || ''}`
+  });
+  
   if (!user) return null;
   
-  // ✅ Redirection intelligente selon le rôle
-  return user.role === 'doctor' ? <DoctorDashboard /> : <PatientDashboard />;
+  // ✅ REDIRECTION INTELLIGENTE
+  if (user.role === 'doctor' || user.role === 'admin' || user.role === 'hospital_admin') {
+    console.log('👨‍⚕️ Affichage du DoctorDashboard');
+    return <DoctorDashboard />;
+  }
+  
+  console.log('👤 Affichage du PatientDashboard');
+  return <PatientDashboard />;
 }
 
-// Composant HomePage avec navigation (inchangé)
+// Composant HomePage avec navigation
 const HomePageWithNavigation: React.FC = () => {
   const navigate = useNavigate()
+  const { user } = useAuth();
+
+  // ✅ Redirection si déjà connecté
+  React.useEffect(() => {
+    if (user) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, navigate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      {/* VOTRE CODE HOMEPAGE ICI */}
+      <nav className="glass-nav fixed top-0 left-0 right-0 z-50">
+        {/* ... */}
+      </nav>
       {/* ... reste du code HomePage ... */}
     </div>
   )
@@ -55,12 +78,12 @@ function App() {
                 path="/dashboard" 
                 element={
                   <ProtectedRoute>
-                    <DashboardRouter />
+                    <DashboardRouter /> {/* ← ICI LA MAGIE OPÈRE ! */}
                   </ProtectedRoute>
                 } 
               />
               
-              {/* ✅ ROUTES PATIENT UNIQUEMENT */}
+              {/* ✅ ROUTES PATIENT */}
               <Route 
                 path="/appointments" 
                 element={
@@ -79,26 +102,6 @@ function App() {
                 } 
               />
               
-              {/* ✅ ROUTES MÉDECIN UNIQUEMENT */}
-              <Route 
-                path="/doctor/appointments" 
-                element={
-                  <ProtectedRoute>
-                    <div>Page des rendez-vous médecin</div>
-                  </ProtectedRoute>
-                } 
-              />
-              
-              <Route 
-                path="/doctor/calendar" 
-                element={
-                  <ProtectedRoute>
-                    <div>Gestion du calendrier</div>
-                  </ProtectedRoute>
-                } 
-              />
-              
-              {/* Routes protégées génériques */}
               <Route 
                 path="/appointments/:id" 
                 element={
@@ -109,10 +112,39 @@ function App() {
                         <p className="text-gray-600 mb-4">Page en cours de développement</p>
                         <button 
                           onClick={() => window.history.back()}
-                          className="text-primary-600 hover:text-primary-700"
+                          className="text-blue-600 hover:text-blue-700 font-medium"
                         >
-                          Retour à la liste
+                          Retour
                         </button>
+                      </div>
+                    </div>
+                  </ProtectedRoute>
+                } 
+              />
+              
+              {/* ✅ ROUTES MÉDECIN */}
+              <Route 
+                path="/doctor/appointments" 
+                element={
+                  <ProtectedRoute>
+                    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                      <div className="bg-white p-8 rounded-lg shadow-sm text-center">
+                        <h1 className="text-2xl font-bold text-gray-900 mb-4">Gestion des rendez-vous</h1>
+                        <p className="text-gray-600">Page réservée aux médecins</p>
+                      </div>
+                    </div>
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/doctor/calendar" 
+                element={
+                  <ProtectedRoute>
+                    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                      <div className="bg-white p-8 rounded-lg shadow-sm text-center">
+                        <h1 className="text-2xl font-bold text-gray-900 mb-4">Gestion du calendrier</h1>
+                        <p className="text-gray-600">Page réservée aux médecins</p>
                       </div>
                     </div>
                   </ProtectedRoute>
@@ -129,9 +161,9 @@ function App() {
                         <p className="text-gray-600 mb-4">Page en cours de développement</p>
                         <button 
                           onClick={() => window.history.back()}
-                          className="text-primary-600 hover:text-primary-700"
+                          className="text-blue-600 hover:text-blue-700 font-medium"
                         >
-                          Retour au tableau de bord
+                          Retour
                         </button>
                       </div>
                     </div>
@@ -149,9 +181,9 @@ function App() {
                         <p className="text-gray-600 mb-4">Page en cours de développement</p>
                         <button 
                           onClick={() => window.history.back()}
-                          className="text-primary-600 hover:text-primary-700"
+                          className="text-blue-600 hover:text-blue-700 font-medium"
                         >
-                          Retour au tableau de bord
+                          Retour
                         </button>
                       </div>
                     </div>
