@@ -571,9 +571,7 @@ const DoctorDashboard: React.FC = () => {
       </div>
 
       {/* GESTION DU CALENDRIER */}
-      <div className="futuristic-card p-6">
-        <CalendarManagement />
-      </div>
+      <CalendarManagement />
     </div>
   );
 };
