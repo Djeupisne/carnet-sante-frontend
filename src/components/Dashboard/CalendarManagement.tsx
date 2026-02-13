@@ -1,142 +1,240 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Plus, Edit2, Trash2, Save, X, Check } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import { useNotification } from '../../context/NotificationContext';
 import { calendarService } from '../../services/calendarService';
+import { Calendar, Check, Trash, Edit, Plus, X, Clock, Save, AlertCircle, AlertTriangle } from 'lucide-react';
 
-interface CalendarSlot {
+// ✅ Interface corrigée : doctor inclut l'id
+interface CalendarType {
   id: string;
-  doctorId: string;
-  dayOfWeek: number;
-  startTime: string;
-  endTime: string;
-  isAvailable: boolean;
+  date: string;
+  slots: string[];
+  confirmed: boolean;
+  doctor?: { firstName: string; lastName: string; id: string };
 }
 
-const DAYS_OF_WEEK = [
-  { value: 1, label: 'Lundi' },
-  { value: 2, label: 'Mardi' },
-  { value: 3, label: 'Mercredi' },
-  { value: 4, label: 'Jeudi' },
-  { value: 5, label: 'Vendredi' },
-  { value: 6, label: 'Samedi' },
-  { value: 0, label: 'Dimanche' },
-];
+interface NotificationProps {
+  message: string;
+  type: 'success' | 'error' | 'warning' | 'info';
+}
 
 const CalendarManagement: React.FC = () => {
-  const { user } = useAuth();
-  const { showNotification } = useNotification();
-  const [calendars, setCalendars] = useState<CalendarSlot[]>([]);
+  const [calendars, setCalendars] = useState<CalendarType[]>([]);
+  const [newCalendar, setNewCalendar] = useState({ date: '', slots: [''] });
+  const [isCreating, setIsCreating] = useState(false);
+  const [isEditing, setIsEditing] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    dayOfWeek: 1,
-    startTime: '09:00',
-    endTime: '17:00',
-    isAvailable: true,
-  });
+  const [notification, setNotification] = useState<NotificationProps | null>(null);
 
   useEffect(() => {
     fetchCalendars();
-  }, [user]);
+  }, []);
+
+  // Afficher une notification
+  const showNotification = (message: string, type: NotificationProps['type']) => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 5000);
+  };
 
   const fetchCalendars = async () => {
-    if (!user?.id) return;
     try {
       setLoading(true);
-      const data = await calendarService.getCalendars(user.id);
-      setCalendars(data);
-    } catch (error) {
-      console.error('Erreur chargement calendriers:', error);
-      showNotification('Erreur lors du chargement des disponibilités', 'error');
+      console.log('📅 Récupération des calendriers...');
+      
+      const response = await calendarService.getDoctorCalendars();
+      
+      // Gérer les différents formats de réponse
+      let calendarsData: CalendarType[] = [];
+      if (response && response.data) {
+        calendarsData = Array.isArray(response.data) ? response.data : [response.data];
+      }
+      
+      console.log(`✅ ${calendarsData.length} calendrier(s) récupéré(s)`);
+      setCalendars(calendarsData);
+    } catch (error: any) {
+      console.error('❌ Erreur lors de la récupération des calendriers:', error);
+      showNotification(
+        'Impossible de charger les calendriers. Le backend n\'est peut-être pas encore configuré.',
+        'warning'
+      );
+      // Ne pas bloquer l'interface, juste afficher un tableau vide
+      setCalendars([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreateCalendar = async () => {
+    // Validation
+    if (!newCalendar.date) {
+      showNotification('Veuillez sélectionner une date', 'error');
+      return;
+    }
+    if (newCalendar.slots.some(slot => !slot)) {
+      showNotification('Veuillez remplir tous les créneaux', 'error');
+      return;
+    }
+
     try {
-      if (editingId) {
-        await calendarService.updateCalendar(editingId, formData);
-        showNotification('✅ Disponibilité modifiée avec succès', 'success');
-      } else {
-        await calendarService.createCalendar({ ...formData, doctorId: user?.id });
-        showNotification('✅ Disponibilité ajoutée avec succès', 'success');
+      console.log('📅 Création du calendrier:', newCalendar);
+      const response = await calendarService.createCalendar(newCalendar);
+      
+      if (response && response.data) {
+        const createdCalendar = typeof response.data === 'object' ? response.data : { ...newCalendar, id: Date.now().toString(), confirmed: false };
+        setCalendars([...calendars, createdCalendar]);
+        setNewCalendar({ date: '', slots: [''] });
+        setIsCreating(false);
+        showNotification('✅ Calendrier créé avec succès', 'success');
+        
+        // Notifier les patients (non bloquant)
+        try {
+          await calendarService.notifyPatients(createdCalendar);
+        } catch (notifyError) {
+          console.warn('⚠️ Notification des patients échouée (non bloquant)');
+        }
       }
-      setShowForm(false);
-      setEditingId(null);
-      resetForm();
-      await fetchCalendars();
-    } catch (error) {
-      console.error('Erreur:', error);
-      showNotification('❌ Erreur lors de l\'enregistrement', 'error');
-    }
-  };
-
-  const handleEdit = (calendar: CalendarSlot) => {
-    setFormData({
-      dayOfWeek: calendar.dayOfWeek,
-      startTime: calendar.startTime,
-      endTime: calendar.endTime,
-      isAvailable: calendar.isAvailable,
-    });
-    setEditingId(calendar.id);
-    setShowForm(true);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Êtes-vous sûr de vouloir supprimer cette disponibilité ?')) return;
-    try {
-      await calendarService.deleteCalendar(id);
-      showNotification('✅ Disponibilité supprimée', 'success');
-      await fetchCalendars();
-    } catch (error) {
-      console.error('Erreur:', error);
-      showNotification('❌ Erreur lors de la suppression', 'error');
-    }
-  };
-
-  const toggleAvailability = async (calendar: CalendarSlot) => {
-    try {
-      await calendarService.updateCalendar(calendar.id, {
-        ...calendar,
-        isAvailable: !calendar.isAvailable,
-      });
+    } catch (error: any) {
+      console.error('❌ Erreur création calendrier:', error);
       showNotification(
-        `✅ Disponibilité ${!calendar.isAvailable ? 'activée' : 'désactivée'}`,
-        'success'
+        error.message || 'Erreur lors de la création du calendrier',
+        'error'
       );
-      await fetchCalendars();
-    } catch (error) {
-      console.error('Erreur:', error);
-      showNotification('❌ Erreur lors de la modification', 'error');
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      dayOfWeek: 1,
-      startTime: '09:00',
-      endTime: '17:00',
-      isAvailable: true,
+  const handleUpdateCalendar = async (calendarId: string) => {
+    try {
+      const updatedCalendar = calendars.find((c) => c.id === calendarId);
+      if (!updatedCalendar) {
+        showNotification('Calendrier introuvable', 'error');
+        return;
+      }
+
+      // ✅ Correction : ajout de doctor.id si manquant
+      const safeCalendar: CalendarType = {
+        ...updatedCalendar,
+        doctor: updatedCalendar.doctor
+          ? {
+              firstName: updatedCalendar.doctor.firstName,
+              lastName: updatedCalendar.doctor.lastName,
+              id: updatedCalendar.doctor.id || 'unknown-id',
+            }
+          : undefined,
+      };
+
+      console.log('📅 Mise à jour du calendrier:', calendarId);
+      const response = await calendarService.updateCalendar(calendarId, safeCalendar);
+      
+      if (response && response.data) {
+        setCalendars(calendars.map((c) => (c.id === calendarId ? response.data : c)));
+        showNotification('✅ Calendrier mis à jour avec succès', 'success');
+        setIsEditing(null);
+        
+        // Sauvegarder version et notifier (non bloquant)
+        try {
+          await calendarService.saveCalendarVersion(response.data as CalendarType);
+          await calendarService.notifyPatients(response.data as CalendarType);
+        } catch (notifyError) {
+          console.warn('⚠️ Notifications/versions échouées (non bloquant)');
+        }
+      }
+    } catch (error: any) {
+      console.error('❌ Erreur mise à jour calendrier:', error);
+      showNotification(
+        error.message || 'Erreur lors de la mise à jour du calendrier',
+        'error'
+      );
+    }
+  };
+
+  const handleDeleteCalendar = async (calendarId: string) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce calendrier ?')) return;
+    
+    try {
+      console.log('📅 Suppression du calendrier:', calendarId);
+      await calendarService.deleteCalendar(calendarId);
+      setCalendars(calendars.filter((c) => c.id !== calendarId));
+      showNotification('✅ Calendrier supprimé avec succès', 'success');
+    } catch (error: any) {
+      console.error('❌ Erreur suppression calendrier:', error);
+      showNotification(
+        error.message || 'Erreur lors de la suppression du calendrier',
+        'error'
+      );
+    }
+  };
+
+  const handleConfirmCalendar = async (calendarId: string) => {
+    try {
+      console.log('📅 Confirmation du calendrier:', calendarId);
+      await calendarService.confirmCalendar(calendarId);
+      setCalendars(
+        calendars.map((c) =>
+          c.id === calendarId ? { ...c, confirmed: true } : c
+        )
+      );
+      showNotification('✅ Calendrier confirmé avec succès', 'success');
+    } catch (error: any) {
+      console.error('❌ Erreur confirmation calendrier:', error);
+      showNotification(
+        error.message || 'Erreur lors de la confirmation du calendrier',
+        'error'
+      );
+    }
+  };
+
+  const handleAddSlot = () => {
+    setNewCalendar({ ...newCalendar, slots: [...newCalendar.slots, ''] });
+  };
+
+  const handleRemoveSlot = (index: number) => {
+    if (newCalendar.slots.length > 1) {
+      const updatedSlots = newCalendar.slots.filter((_, i) => i !== index);
+      setNewCalendar({ ...newCalendar, slots: updatedSlots });
+    }
+  };
+
+  const handleSlotChange = (index: number, value: string) => {
+    const updatedSlots = [...newCalendar.slots];
+    updatedSlots[index] = value;
+    setNewCalendar({ ...newCalendar, slots: updatedSlots });
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR', { 
+      weekday: 'long', 
+      day: '2-digit', 
+      month: 'long', 
+      year: 'numeric' 
     });
-    setEditingId(null);
-    setShowForm(false);
   };
-
-  const getDayLabel = (dayOfWeek: number) => {
-    return DAYS_OF_WEEK.find(d => d.value === dayOfWeek)?.label || 'Inconnu';
-  };
-
-  const groupedCalendars = DAYS_OF_WEEK.map(day => ({
-    day: day.label,
-    slots: calendars.filter(c => c.dayOfWeek === day.value),
-  }));
 
   return (
     <div className="space-y-6">
+      {/* NOTIFICATION */}
+      {notification && (
+        <div className={`futuristic-card p-4 animate-slide-in border-2 ${
+          notification.type === 'success' ? 'border-green-500/50 bg-green-500/10' :
+          notification.type === 'error' ? 'border-red-500/50 bg-red-500/10' :
+          notification.type === 'warning' ? 'border-yellow-500/50 bg-yellow-500/10' :
+          'border-blue-500/50 bg-blue-500/10'
+        }`}>
+          <div className="flex items-center gap-3">
+            {notification.type === 'success' && <Check className="w-5 h-5 text-green-400" />}
+            {notification.type === 'error' && <X className="w-5 h-5 text-red-400" />}
+            {notification.type === 'warning' && <AlertTriangle className="w-5 h-5 text-yellow-400" />}
+            {notification.type === 'info' && <AlertCircle className="w-5 h-5 text-blue-400" />}
+            <span className={`${
+              notification.type === 'success' ? 'text-green-300' :
+              notification.type === 'error' ? 'text-red-300' :
+              notification.type === 'warning' ? 'text-yellow-300' :
+              'text-blue-300'
+            }`}>
+              {notification.message}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* HEADER */}
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-3">
@@ -144,122 +242,119 @@ const CalendarManagement: React.FC = () => {
             <Calendar className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-white">Gestion des calendriers</h2>
-            <p className="text-gray-400 text-sm">Configurez vos disponibilités hebdomadaires</p>
+            <h3 className="text-2xl font-bold text-white">Gestion des calendriers</h3>
+            <p className="text-gray-400 text-sm">
+              {calendars.length} calendrier{calendars.length > 1 ? 's' : ''} configuré{calendars.length > 1 ? 's' : ''}
+            </p>
           </div>
         </div>
-        
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className={`futuristic-btn flex items-center gap-2 ${
-            showForm ? 'bg-gradient-to-r from-red-500 to-pink-600' : ''
-          }`}
-        >
-          {showForm ? (
-            <>
-              <X className="w-5 h-5" />
-              Annuler
-            </>
-          ) : (
-            <>
-              <Plus className="w-5 h-5" />
-              Créer un nouveau calendrier
-            </>
-          )}
-        </button>
+
+        {!isCreating && (
+          <button
+            onClick={() => setIsCreating(true)}
+            className="futuristic-btn flex items-center gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            Créer un nouveau calendrier
+          </button>
+        )}
       </div>
 
-      {/* FORMULAIRE */}
-      {showForm && (
+      {/* FORMULAIRE DE CRÉATION */}
+      {isCreating && (
         <div className="futuristic-card p-6 animate-slide-in border-blue-500/50">
-          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-blue-400" />
-            {editingId ? 'Modifier la disponibilité' : 'Nouvelle disponibilité'}
-          </h3>
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Jour de la semaine */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Jour de la semaine
+          <div className="flex justify-between items-center mb-6">
+            <h4 className="text-lg font-bold text-white flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-blue-400" />
+              Nouveau calendrier
+            </h4>
+            <button
+              onClick={() => {
+                setIsCreating(false);
+                setNewCalendar({ date: '', slots: [''] });
+              }}
+              className="p-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-all duration-300"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            {/* Date */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Date du calendrier
+              </label>
+              <input
+                type="date"
+                value={newCalendar.date}
+                onChange={(e) => setNewCalendar({ ...newCalendar, date: e.target.value })}
+                className="futuristic-input"
+                required
+              />
+            </div>
+
+            {/* Créneaux horaires */}
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-sm font-medium text-gray-300">
+                  Créneaux horaires
                 </label>
-                <select
-                  value={formData.dayOfWeek}
-                  onChange={(e) => setFormData({ ...formData, dayOfWeek: Number(e.target.value) })}
-                  className="futuristic-input"
-                  required
+                <button
+                  onClick={handleAddSlot}
+                  className="px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-lg text-sm font-medium flex items-center gap-1 transition-all duration-300"
                 >
-                  {DAYS_OF_WEEK.map(day => (
-                    <option key={day.value} value={day.value}>
-                      {day.label}
-                    </option>
-                  ))}
-                </select>
+                  <Plus className="w-4 h-4" />
+                  Ajouter un créneau
+                </button>
               </div>
 
-              {/* Statut */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Statut
-                </label>
-                <select
-                  value={formData.isAvailable ? 'true' : 'false'}
-                  onChange={(e) => setFormData({ ...formData, isAvailable: e.target.value === 'true' })}
-                  className="futuristic-input"
-                >
-                  <option value="true">Disponible</option>
-                  <option value="false">Indisponible</option>
-                </select>
-              </div>
-
-              {/* Heure de début */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Heure de début
-                </label>
-                <input
-                  type="time"
-                  value={formData.startTime}
-                  onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                  className="futuristic-input"
-                  required
-                />
-              </div>
-
-              {/* Heure de fin */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Heure de fin
-                </label>
-                <input
-                  type="time"
-                  value={formData.endTime}
-                  onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                  className="futuristic-input"
-                  required
-                />
+              <div className="space-y-2">
+                {newCalendar.slots.map((slot, index) => (
+                  <div key={index} className="flex gap-2 items-center">
+                    <Clock className="w-4 h-4 text-gray-400" />
+                    <input
+                      type="time"
+                      value={slot}
+                      onChange={(e) => handleSlotChange(index, e.target.value)}
+                      className="futuristic-input flex-1"
+                      required
+                    />
+                    {newCalendar.slots.length > 1 && (
+                      <button
+                        onClick={() => handleRemoveSlot(index)}
+                        className="p-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-all duration-300"
+                      >
+                        <Trash className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
 
+            {/* Boutons d'action */}
             <div className="flex gap-3 pt-4">
               <button
-                type="submit"
-                className="futuristic-btn flex items-center gap-2 flex-1"
+                onClick={handleCreateCalendar}
+                disabled={!newCalendar.date || newCalendar.slots.some(s => !s)}
+                className="futuristic-btn flex items-center gap-2 flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Save className="w-4 h-4" />
-                {editingId ? 'Mettre à jour' : 'Enregistrer'}
+                Créer le calendrier
               </button>
               <button
-                type="button"
-                onClick={resetForm}
-                className="futuristic-btn-secondary flex items-center gap-2 flex-1"
+                onClick={() => {
+                  setIsCreating(false);
+                  setNewCalendar({ date: '', slots: [''] });
+                }}
+                className="futuristic-btn-secondary flex items-center gap-2"
               >
                 <X className="w-4 h-4" />
                 Annuler
               </button>
             </div>
-          </form>
+          </div>
         </div>
       )}
 
@@ -268,7 +363,7 @@ const CalendarManagement: React.FC = () => {
         <div className="futuristic-card p-12">
           <div className="text-center">
             <div className="w-16 h-16 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-400">Chargement des disponibilités...</p>
+            <p className="text-gray-400">Chargement des calendriers...</p>
           </div>
         </div>
       ) : calendars.length === 0 ? (
@@ -278,99 +373,157 @@ const CalendarManagement: React.FC = () => {
               <Calendar className="w-10 h-10 text-gray-500" />
             </div>
             <h3 className="text-xl font-semibold text-gray-300 mb-2">
-              Aucune disponibilité configurée
+              Aucun calendrier configuré
             </h3>
             <p className="text-gray-400 mb-6">
-              Commencez par créer votre première disponibilité
+              Créez votre premier calendrier avec des créneaux de disponibilité
             </p>
             <button
-              onClick={() => setShowForm(true)}
+              onClick={() => setIsCreating(true)}
               className="futuristic-btn inline-flex items-center gap-2"
             >
               <Plus className="w-5 h-5" />
-              Créer une disponibilité
+              Créer un calendrier
             </button>
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {groupedCalendars.map(({ day, slots }) => (
-            <div key={day} className="futuristic-card p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                  {day}
-                </h3>
-                <span className="text-sm text-gray-400">
-                  {slots.length} créneau{slots.length > 1 ? 'x' : ''}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {calendars.map((calendar) => (
+            <div
+              key={calendar.id}
+              className={`futuristic-card p-6 transition-all duration-300 hover:border-white/30 ${
+                calendar.confirmed 
+                  ? 'border-green-500/50 bg-green-500/5' 
+                  : 'border-yellow-500/50 bg-yellow-500/5'
+              }`}
+            >
+              {/* Header de la carte */}
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${
+                    calendar.confirmed 
+                      ? 'bg-green-500/20' 
+                      : 'bg-yellow-500/20'
+                  }`}>
+                    <Calendar className={`w-5 h-5 ${
+                      calendar.confirmed 
+                        ? 'text-green-400' 
+                        : 'text-yellow-400'
+                    }`} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-white capitalize">
+                      {formatDate(calendar.date)}
+                    </h4>
+                    <p className="text-sm text-gray-400">
+                      {calendar.slots.length} créneau{calendar.slots.length > 1 ? 'x' : ''} disponible{calendar.slots.length > 1 ? 's' : ''}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Badge statut */}
+                <span className={`px-3 py-1 rounded-lg text-xs font-semibold ${
+                  calendar.confirmed
+                    ? 'bg-green-500/20 text-green-300 border border-green-500/30'
+                    : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
+                }`}>
+                  {calendar.confirmed ? '✓ Confirmé' : '⏳ En attente'}
                 </span>
               </div>
 
-              {slots.length === 0 ? (
-                <div className="text-center py-8 bg-white/5 rounded-xl border border-white/10">
-                  <Clock className="w-8 h-8 text-gray-500 mx-auto mb-2" />
-                  <p className="text-gray-400 text-sm">Aucun créneau configuré</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {slots.map(slot => (
-                    <div
-                      key={slot.id}
-                      className={`bg-white/5 rounded-xl p-4 border transition-all duration-300 ${
-                        slot.isAvailable
-                          ? 'border-green-500/30 hover:border-green-500/50'
-                          : 'border-red-500/30 hover:border-red-500/50'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <Clock className={`w-5 h-5 ${slot.isAvailable ? 'text-green-400' : 'text-red-400'}`} />
-                            <span className="font-semibold text-white">
-                              {slot.startTime} - {slot.endTime}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
-                              slot.isAvailable
-                                ? 'bg-green-500/20 text-green-300 border border-green-500/30'
-                                : 'bg-red-500/20 text-red-300 border border-red-500/30'
-                            }`}>
-                              {slot.isAvailable ? '✓ Disponible' : '✕ Indisponible'}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex gap-2 ml-4">
-                          <button
-                            onClick={() => toggleAvailability(slot)}
-                            className={`p-2 rounded-lg transition-all duration-300 ${
-                              slot.isAvailable
-                                ? 'bg-green-500/20 hover:bg-green-500/30 text-green-400'
-                                : 'bg-red-500/20 hover:bg-red-500/30 text-red-400'
-                            }`}
-                            title={slot.isAvailable ? 'Désactiver' : 'Activer'}
-                          >
-                            <Check className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleEdit(slot)}
-                            className="p-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg transition-all duration-300"
-                            title="Modifier"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(slot.id)}
-                            className="p-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-all duration-300"
-                            title="Supprimer"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
+              {/* Créneaux horaires */}
+              {isEditing === calendar.id ? (
+                <div className="space-y-3 mb-4">
+                  <input
+                    type="date"
+                    value={calendar.date}
+                    onChange={(e) =>
+                      setCalendars(
+                        calendars.map((c) =>
+                          c.id === calendar.id ? { ...c, date: e.target.value } : c
+                        )
+                      )
+                    }
+                    className="futuristic-input mb-2"
+                  />
+                  {calendar.slots.map((slot, index) => (
+                    <div key={index} className="flex items-center gap-2 bg-white/5 rounded-lg p-2">
+                      <Clock className="w-4 h-4 text-blue-400" />
+                      <span className="text-white font-medium">{slot}</span>
                     </div>
                   ))}
+                </div>
+              ) : (
+                <div className="space-y-2 mb-4">
+                  {calendar.slots.map((slot, index) => (
+                    <div key={index} className="flex items-center gap-2 bg-white/5 rounded-lg p-3">
+                      <Clock className="w-4 h-4 text-blue-400" />
+                      <span className="text-white font-medium">{slot}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-4 border-t border-white/10">
+                {isEditing === calendar.id ? (
+                  <>
+                    <button
+                      onClick={() => handleUpdateCalendar(calendar.id)}
+                      className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-2 shadow-lg transition-all duration-300"
+                    >
+                      <Save className="w-4 h-4" />
+                      Enregistrer
+                    </button>
+                    <button
+                      onClick={() => setIsEditing(null)}
+                      className="px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-lg text-sm font-semibold flex items-center gap-2 hover:bg-white/20 transition-all duration-300"
+                    >
+                      <X className="w-4 h-4" />
+                      Annuler
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {!calendar.confirmed && (
+                      <>
+                        <button
+                          onClick={() => setIsEditing(calendar.id)}
+                          className="p-2 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 rounded-lg transition-all duration-300"
+                          title="Modifier"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleConfirmCalendar(calendar.id)}
+                          className="flex-1 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-2 shadow-lg transition-all duration-300"
+                        >
+                          <Check className="w-4 h-4" />
+                          Confirmer
+                        </button>
+                      </>
+                    )}
+                    <button
+                      onClick={() => handleDeleteCalendar(calendar.id)}
+                      className="p-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-all duration-300"
+                      title="Supprimer"
+                    >
+                      <Trash className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Information si confirmé */}
+              {calendar.confirmed && calendar.doctor && (
+                <div className="mt-4 pt-4 border-t border-white/10">
+                  <div className="flex items-center gap-2 text-sm">
+                    <AlertCircle className="w-4 h-4 text-blue-400" />
+                    <span className="text-gray-400">
+                      Confirmé par Dr. {calendar.doctor.firstName} {calendar.doctor.lastName}
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
