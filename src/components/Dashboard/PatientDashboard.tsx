@@ -5,7 +5,7 @@ import { calendarService } from '../../services/calendarService';
 import { userService } from '../../services/userService';
 import { appointmentService } from '../../services/appointmentService';
 import { X, Check, CreditCard, Calendar, Clock, User, ChevronRight, ArrowLeft } from 'lucide-react';
-
+import { useNotification } from '../../context/NotificationContext';
 interface Doctor {
   id: string;
   firstName: string;
@@ -15,7 +15,6 @@ interface Doctor {
   availableSlots: string[];
   consultationPrice?: number;
 }
-
 interface Calendar {
   id: string;
   date: string;
@@ -23,7 +22,6 @@ interface Calendar {
   confirmed: boolean;
   doctor: { firstName: string; lastName: string };
 }
-
 interface Appointment {
   id: string;
   doctor: { firstName: string; lastName: string; specialty: string };
@@ -33,17 +31,16 @@ interface Appointment {
   type: 'in_person' | 'teleconsultation' | 'home_visit';
   reason: string;
 }
-
 const PatientDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { showNotification } = useNotification();
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [calendars, setCalendars] = useState<Calendar[]>([]);
   const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [appointmentsLoading, setAppointmentsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
   const [showBooking, setShowBooking] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [bookingStep, setBookingStep] = useState(1);
@@ -62,80 +59,63 @@ const PatientDashboard: React.FC = () => {
     date: '', 
     cvv: '' 
   });
-
   const medicalSummary = {
     allergies: 2,
     medications: 3,
     conditions: 1,
   };
-
-  // ✅ Générer les dates disponibles (30 prochains jours, sauf dimanche)
   const generateDates = () => {
     const dates = [];
     const today = new Date();
-    
     for (let i = 0; i < 30; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
-      // Exclure dimanche (0)
       if (date.getDay() !== 0) {
         dates.push(date.toISOString().split('T')[0]);
       }
     }
     return dates;
   };
-
-  // ✅ Charger les créneaux disponibles quand on sélectionne un médecin et une date
   useEffect(() => {
     if (selectedDoctor && selectedDate) {
       loadAvailableSlots();
     }
   }, [selectedDoctor, selectedDate]);
-
   const loadAvailableSlots = async () => {
     if (!selectedDoctor || !selectedDate) return;
-    
     setIsLoadingSlots(true);
     setAvailableSlots([]);
     setSelectedTime('');
-    
     try {
       const slots = await appointmentService.getDoctorAvailableSlots(selectedDoctor.id, selectedDate);
       setAvailableSlots(slots);
     } catch (error) {
       console.error('Erreur chargement créneaux:', error);
-      // Créneaux par défaut
       setAvailableSlots(['09:00', '10:00', '11:00', '14:00', '15:00', '16:00']);
     } finally {
       setIsLoadingSlots(false);
     }
   };
-
   const fetchAppointments = async () => {
     if (!user?.id) {
       setAppointmentsLoading(false);
       return;
     }
-
     try {
       setAppointmentsLoading(true);
       console.log('🔄 Chargement des rendez-vous depuis le service...');
-      
       const appointments = await appointmentService.getAppointments();
       console.log('📋 Rendez-vous reçus du service:', appointments);
-      
       if (!appointments || !Array.isArray(appointments)) {
         console.warn('⚠️ Les rendez-vous ne sont pas un tableau:', appointments);
         setUpcomingAppointments([]);
         return;
       }
-
       if (appointments.length === 0) {
         console.log('ℹ️ Aucun rendez-vous trouvé');
         setUpcomingAppointments([]);
         return;
       }
-
       const transformedAppointments: Appointment[] = appointments.map((apt: any, index: number) => {
         return {
           id: apt.id || `temp-${index}`,
@@ -151,7 +131,6 @@ const PatientDashboard: React.FC = () => {
           reason: apt.reason || 'Consultation médicale'
         };
       });
-
       console.log('🔄 Filtrage des rendez-vous à venir...');
       const now = new Date();
       const upcoming = transformedAppointments.filter(apt => {
@@ -160,14 +139,12 @@ const PatientDashboard: React.FC = () => {
           const isValidDate = !isNaN(appointmentDate.getTime());
           const isFuture = appointmentDate >= now;
           const isActive = apt.status !== 'cancelled' && apt.status !== 'completed';
-          
           return isValidDate && isFuture && isActive;
         } catch (error) {
           console.warn('❌ Date de rendez-vous invalide:', apt.appointmentDate);
           return false;
         }
       });
-
       console.log('✅ Rendez-vous à venir filtrés:', upcoming);
       setUpcomingAppointments(upcoming);
     } catch (err) {
@@ -177,23 +154,18 @@ const PatientDashboard: React.FC = () => {
       setAppointmentsLoading(false);
     }
   };
-
   useEffect(() => {
     const fetchData = async () => {
       if (!user?.id) {
         setLoading(false);
         return;
       }
-
       try {
         setLoading(true);
         setError(null);
-        
         console.log('🔄 Chargement des médecins...');
         const doctorsData = await appointmentService.getDoctors();
-        
         console.log('👨‍⚕️ Médecins reçus:', doctorsData);
-        
         const fetchedDoctors: Doctor[] = doctorsData.map((d: any) => ({
           id: d.id,
           firstName: d.firstName,
@@ -203,15 +175,12 @@ const PatientDashboard: React.FC = () => {
           availableSlots: d.availableSlots || ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00'],
           consultationPrice: d.consultationPrice || 50
         }));
-        
         setDoctors(fetchedDoctors);
         setCalendars([]);
         await fetchAppointments();
-        
       } catch (err) {
         console.error('❌ Erreur lors de la récupération des données:', err);
         setError('Impossible de charger les données. Utilisation des données de secours.');
-
         const mockDoctors: Doctor[] = [
           { 
             id: '1', 
@@ -241,7 +210,6 @@ const PatientDashboard: React.FC = () => {
             consultationPrice: 70
           },
         ];
-        
         setDoctors(mockDoctors);
         setCalendars([]);
         setUpcomingAppointments([]);
@@ -249,10 +217,8 @@ const PatientDashboard: React.FC = () => {
         setLoading(false);
       }
     };
-
     fetchData();
   }, [user?.id]);
-
   const formatAppointmentDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
@@ -266,7 +232,6 @@ const PatientDashboard: React.FC = () => {
       return 'Date invalide';
     }
   };
-
   const formatAppointmentTime = (dateString: string) => {
     try {
       const date = new Date(dateString);
@@ -275,7 +240,6 @@ const PatientDashboard: React.FC = () => {
       return 'Heure invalide';
     }
   };
-
   const getStatusText = (status: string) => {
     const statusMap = {
       confirmed: '✓ Confirmé',
@@ -287,7 +251,6 @@ const PatientDashboard: React.FC = () => {
     };
     return statusMap[status as keyof typeof statusMap] || status;
   };
-
   const getStatusClass = (status: string) => {
     const classMap = {
       confirmed: 'bg-green-500/20 text-green-300 border border-green-500/30',
@@ -299,15 +262,10 @@ const PatientDashboard: React.FC = () => {
     };
     return classMap[status as keyof typeof classMap] || classMap.pending;
   };
-
-  // ✅ Remplacer handleBookingClick par une redirection vers la page de réservation
   const handleBookingClick = (doctor: Doctor) => {
     if (!doctor.available) return;
-    // Rediriger vers la page de réservation avec l'ID du médecin
     navigate(`/appointments/book?doctorId=${doctor.id}`);
   };
-
-  // ✅ Modal de réservation locale (gardée pour compatibilité mais redirige maintenant)
   const handleBookingModal = (doctor: Doctor) => {
     setSelectedDoctor(doctor);
     setShowBooking(true);
@@ -319,59 +277,52 @@ const PatientDashboard: React.FC = () => {
     setCardInfo({ number: '', date: '', cvv: '' });
     setFormData({ reason: '', type: 'in_person', symptoms: '' });
   };
-
   const handleDateSelect = (date: string) => {
     setSelectedDate(date);
     setSelectedTime('');
   };
-
   const handleConfirmDoctor = () => {
     setBookingStep(2);
   };
-
   const handleConfirmTime = () => {
     if (selectedTime) setBookingStep(3);
   };
-
   const handlePayment = async () => {
     if (!cardInfo.number || !cardInfo.date || !cardInfo.cvv) {
-      alert('Veuillez remplir tous les champs de paiement');
+      showNotification('Veuillez remplir tous les champs de paiement', 'error');
       return;
     }
-
-    if (!selectedDoctor || !selectedDate || !selectedTime) {
-      alert('Informations de rendez-vous incomplètes');
+    if (!selectedDoctor || !selectedDate || !selectedTime || !formData.reason) {
+      showNotification('Informations de rendez-vous incomplètes', 'error');
       return;
     }
-
     try {
-      // Créer le rendez-vous
       const appointmentData = {
         doctorId: selectedDoctor.id,
         appointmentDate: `${selectedDate}T${selectedTime}:00`,
         duration: 30,
         type: formData.type,
-        reason: formData.reason || 'Consultation médicale',
+        reason: formData.reason,
         notes: formData.symptoms || ''
       };
-
       await appointmentService.createAppointment(appointmentData);
-      
       setBookingConfirmed(true);
+      showNotification('✅ Rendez-vous confirmé ! Le médecin sera notifié.', 'success');
       setTimeout(() => {
         setShowBooking(false);
         setSelectedDoctor(null);
         setBookingStep(1);
-        alert(`✅ Rendez-vous confirmé avec Dr. ${selectedDoctor?.firstName} ${selectedDoctor?.lastName} le ${selectedDate} à ${selectedTime}`);
-        // Recharger les rendez-vous
+        setSelectedDate('');
+        setSelectedTime('');
+        setCardInfo({ number: '', date: '', cvv: '' });
+        setFormData({ reason: '', type: 'in_person', symptoms: '' });
         fetchAppointments();
-      }, 1500);
+      }, 2000);
     } catch (error) {
-      console.error('Erreur lors de la création du rendez-vous:', error);
-      alert('Erreur lors de la réservation. Veuillez réessayer.');
+      console.error('❌ Erreur lors de la création du rendez-vous:', error);
+      showNotification('Erreur lors de la réservation. Veuillez réessayer.', 'error');
     }
   };
-
   const closeBooking = () => {
     setShowBooking(false);
     setSelectedDoctor(null);
@@ -382,7 +333,6 @@ const PatientDashboard: React.FC = () => {
     setCardInfo({ number: '', date: '', cvv: '' });
     setFormData({ reason: '', type: 'in_person', symptoms: '' });
   };
-
   if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
@@ -390,7 +340,6 @@ const PatientDashboard: React.FC = () => {
       </div>
     );
   }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       <header className="glass-nav sticky top-0 z-50">
@@ -442,7 +391,6 @@ const PatientDashboard: React.FC = () => {
           </div>
         </div>
       </header>
-
       <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="mb-12 animate-slide-in">
           <h1 className="text-4xl font-black text-white mb-2 animate-float">
@@ -452,14 +400,11 @@ const PatientDashboard: React.FC = () => {
             Gérez votre santé avec la plateforme médicale du futur
           </p>
         </div>
-
         {error && (
           <div className="futuristic-card p-4 mb-8 border-red-500/50 bg-red-500/10">
             <p className="text-red-300">{error}</p>
           </div>
         )}
-
-        {/* TABLEAU DES MÉDECINS DISPONIBLES */}
         <div className="futuristic-card p-8 mb-12">
           <h2 className="text-2xl font-black gradient-text mb-8">
             Disponibilités des médecins
@@ -527,9 +472,7 @@ const PatientDashboard: React.FC = () => {
             </div>
           )}
         </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* SECTION DES RENDEZ-VOUS À VENIR */}
           <div className="lg:col-span-2 futuristic-card p-8">
             <div className="flex justify-between items-center mb-8">
               <div>
@@ -545,7 +488,6 @@ const PatientDashboard: React.FC = () => {
                 Voir tout →
               </Link>
             </div>
-            
             {appointmentsLoading ? (
               <div className="text-center py-12">
                 <p className="text-white/50 text-lg">Chargement des rendez-vous...</p>
@@ -616,7 +558,6 @@ const PatientDashboard: React.FC = () => {
               </div>
             )}
           </div>
-
           <div className="futuristic-card p-8">
             <h2 className="text-2xl font-black gradient-text mb-8">
               Résumé Médical
@@ -670,8 +611,6 @@ const PatientDashboard: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* MODAL DE RÉSERVATION COMPLÈTE (GARDÉE POUR COMPATIBILITÉ) */}
       {showBooking && selectedDoctor && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -681,7 +620,6 @@ const PatientDashboard: React.FC = () => {
                 <X size={24} />
               </button>
             </div>
-
             <div className="p-6">
               {bookingConfirmed ? (
                 <div className="text-center py-12">
@@ -692,10 +630,10 @@ const PatientDashboard: React.FC = () => {
                   </div>
                   <h3 className="text-xl font-bold text-gray-900 mb-2">Rendez-vous confirmé!</h3>
                   <p className="text-gray-600">Votre paiement a été traité avec succès.</p>
+                  <p className="text-gray-500 text-sm mt-2">Le médecin a été notifié de votre demande.</p>
                 </div>
               ) : (
                 <>
-                  {/* Étape 1: Médecin sélectionné */}
                   {bookingStep === 1 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Étape 1: Médecin sélectionné</h3>
@@ -734,13 +672,9 @@ const PatientDashboard: React.FC = () => {
                       </div>
                     </div>
                   )}
-
-                  {/* Étape 2: Sélection de la date et heure */}
                   {bookingStep === 2 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Étape 2: Sélectionnez la date et l'heure</h3>
-                      
-                      {/* Sélection de la date */}
                       <div className="mb-6">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Date du rendez-vous
@@ -761,8 +695,6 @@ const PatientDashboard: React.FC = () => {
                           ))}
                         </div>
                       </div>
-
-                      {/* Sélection de l'heure */}
                       {selectedDate && (
                         <div className="mb-6">
                           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -795,7 +727,6 @@ const PatientDashboard: React.FC = () => {
                           )}
                         </div>
                       )}
-
                       <div className="flex justify-end gap-3">
                         <button 
                           onClick={() => setBookingStep(1)} 
@@ -815,13 +746,9 @@ const PatientDashboard: React.FC = () => {
                       </div>
                     </div>
                   )}
-
-                  {/* Étape 3: Paiement */}
                   {bookingStep === 3 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Étape 3: Paiement sécurisé</h3>
-                      
-                      {/* Récapitulatif */}
                       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
                         <h4 className="font-semibold text-gray-900 mb-3">Récapitulatif du rendez-vous</h4>
                         <div className="space-y-2 text-sm">
@@ -838,8 +765,6 @@ const PatientDashboard: React.FC = () => {
                           </div>
                         </div>
                       </div>
-
-                      {/* Formulaire de paiement */}
                       <div className="mb-6">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Numéro de carte
@@ -852,7 +777,6 @@ const PatientDashboard: React.FC = () => {
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
                         />
                       </div>
-                      
                       <div className="grid grid-cols-2 gap-4 mb-6">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -879,7 +803,6 @@ const PatientDashboard: React.FC = () => {
                           />
                         </div>
                       </div>
-
                       <div className="flex justify-end gap-3">
                         <button 
                           onClick={() => setBookingStep(2)} 
@@ -906,5 +829,4 @@ const PatientDashboard: React.FC = () => {
     </div>
   );
 };
-
 export default PatientDashboard;
