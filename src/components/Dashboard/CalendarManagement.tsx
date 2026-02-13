@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { calendarService } from '../../services/calendarService';
 import { Calendar, Check, Trash, Edit, Plus, X, Clock, Save, AlertCircle, AlertTriangle } from 'lucide-react';
 
-// ✅ Interface corrigée : doctor inclut l'id
-interface CalendarType {
+// Interface correspondant au service existant
+interface Calendar {
   id: string;
   date: string;
   slots: string[];
@@ -17,7 +17,7 @@ interface NotificationProps {
 }
 
 const CalendarManagement: React.FC = () => {
-  const [calendars, setCalendars] = useState<CalendarType[]>([]);
+  const [calendars, setCalendars] = useState<Calendar[]>([]);
   const [newCalendar, setNewCalendar] = useState({ date: '', slots: [''] });
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState<string | null>(null);
@@ -41,21 +41,21 @@ const CalendarManagement: React.FC = () => {
       
       const response = await calendarService.getDoctorCalendars();
       
-      // Gérer les différents formats de réponse
-      let calendarsData: CalendarType[] = [];
-      if (response && response.data) {
-        calendarsData = Array.isArray(response.data) ? response.data : [response.data];
+      // Adapter au format de réponse { success: boolean; data: Calendar[] }
+      if (response && response.success && response.data) {
+        const calendarsData = Array.isArray(response.data) ? response.data : [];
+        console.log(`✅ ${calendarsData.length} calendrier(s) récupéré(s)`);
+        setCalendars(calendarsData);
+      } else {
+        console.warn('⚠️ Format de réponse inattendu:', response);
+        setCalendars([]);
       }
-      
-      console.log(`✅ ${calendarsData.length} calendrier(s) récupéré(s)`);
-      setCalendars(calendarsData);
     } catch (error: any) {
       console.error('❌ Erreur lors de la récupération des calendriers:', error);
       showNotification(
-        'Impossible de charger les calendriers. Le backend n\'est peut-être pas encore configuré.',
-        'warning'
+        'Impossible de charger les calendriers. Vérifiez votre connexion.',
+        'error'
       );
-      // Ne pas bloquer l'interface, juste afficher un tableau vide
       setCalendars([]);
     } finally {
       setLoading(false);
@@ -77,16 +77,16 @@ const CalendarManagement: React.FC = () => {
       console.log('📅 Création du calendrier:', newCalendar);
       const response = await calendarService.createCalendar(newCalendar);
       
-      if (response && response.data) {
-        const createdCalendar = typeof response.data === 'object' ? response.data : { ...newCalendar, id: Date.now().toString(), confirmed: false };
-        setCalendars([...calendars, createdCalendar]);
+      if (response && response.success && response.data) {
+        setCalendars([...calendars, response.data]);
         setNewCalendar({ date: '', slots: [''] });
         setIsCreating(false);
         showNotification('✅ Calendrier créé avec succès', 'success');
         
         // Notifier les patients (non bloquant)
         try {
-          await calendarService.notifyPatients(createdCalendar);
+          await calendarService.notifyPatients(response.data);
+          console.log('✉️ Patients notifiés');
         } catch (notifyError) {
           console.warn('⚠️ Notification des patients échouée (non bloquant)');
         }
@@ -94,7 +94,7 @@ const CalendarManagement: React.FC = () => {
     } catch (error: any) {
       console.error('❌ Erreur création calendrier:', error);
       showNotification(
-        error.message || 'Erreur lors de la création du calendrier',
+        error.response?.data?.message || 'Erreur lors de la création du calendrier',
         'error'
       );
     }
@@ -108,30 +108,19 @@ const CalendarManagement: React.FC = () => {
         return;
       }
 
-      // ✅ Correction : ajout de doctor.id si manquant
-      const safeCalendar: CalendarType = {
-        ...updatedCalendar,
-        doctor: updatedCalendar.doctor
-          ? {
-              firstName: updatedCalendar.doctor.firstName,
-              lastName: updatedCalendar.doctor.lastName,
-              id: updatedCalendar.doctor.id || 'unknown-id',
-            }
-          : undefined,
-      };
-
       console.log('📅 Mise à jour du calendrier:', calendarId);
-      const response = await calendarService.updateCalendar(calendarId, safeCalendar);
+      const response = await calendarService.updateCalendar(calendarId, updatedCalendar);
       
-      if (response && response.data) {
+      if (response && response.success && response.data) {
         setCalendars(calendars.map((c) => (c.id === calendarId ? response.data : c)));
         showNotification('✅ Calendrier mis à jour avec succès', 'success');
         setIsEditing(null);
         
         // Sauvegarder version et notifier (non bloquant)
         try {
-          await calendarService.saveCalendarVersion(response.data as CalendarType);
-          await calendarService.notifyPatients(response.data as CalendarType);
+          await calendarService.saveCalendarVersion(response.data);
+          await calendarService.notifyPatients(response.data);
+          console.log('✉️ Patients notifiés de la modification');
         } catch (notifyError) {
           console.warn('⚠️ Notifications/versions échouées (non bloquant)');
         }
@@ -139,7 +128,7 @@ const CalendarManagement: React.FC = () => {
     } catch (error: any) {
       console.error('❌ Erreur mise à jour calendrier:', error);
       showNotification(
-        error.message || 'Erreur lors de la mise à jour du calendrier',
+        error.response?.data?.message || 'Erreur lors de la mise à jour du calendrier',
         'error'
       );
     }
@@ -156,7 +145,7 @@ const CalendarManagement: React.FC = () => {
     } catch (error: any) {
       console.error('❌ Erreur suppression calendrier:', error);
       showNotification(
-        error.message || 'Erreur lors de la suppression du calendrier',
+        error.response?.data?.message || 'Erreur lors de la suppression du calendrier',
         'error'
       );
     }
@@ -175,7 +164,7 @@ const CalendarManagement: React.FC = () => {
     } catch (error: any) {
       console.error('❌ Erreur confirmation calendrier:', error);
       showNotification(
-        error.message || 'Erreur lors de la confirmation du calendrier',
+        error.response?.data?.message || 'Erreur lors de la confirmation du calendrier',
         'error'
       );
     }
