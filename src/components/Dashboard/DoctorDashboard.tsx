@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { userService } from '../../services/userService';
 import { appointmentService } from '../../services/appointmentService';
 import { notificationService } from '../../services/notificationService';
-import { Calendar, Users, Clock, DollarSign, X, Check, Bell, ChevronRight } from 'lucide-react';
+import { Calendar, Users, Clock, DollarSign, X, Check, Bell, ChevronRight, CreditCard } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import CalendarManagement from './CalendarManagement';
 interface Patient {
