@@ -16,8 +16,10 @@ import {
   Star,
   Mail,
   DollarSign,
+  FileText,
   MapPin,
-  FileText
+  Check,
+  X
 } from 'lucide-react';
 import { appointmentService, Appointment } from '../services/appointmentService';
 import { format, parseISO } from 'date-fns';
@@ -45,7 +47,7 @@ const AppointmentDetails: React.FC = () => {
   useEffect(() => {
     if (appointment?.createdAt) {
       updateTimeElapsed();
-      const timer = setInterval(updateTimeElapsed, 60000); // Mise à jour toutes les minutes
+      const timer = setInterval(updateTimeElapsed, 60000);
       return () => clearInterval(timer);
     }
   }, [appointment]);
@@ -117,7 +119,6 @@ const AppointmentDetails: React.FC = () => {
       setSubmittingRating(true);
       await appointmentService.rateAppointment(appointment!.id, rating, feedback);
       setShowRatingModal(false);
-      // Recharger les détails pour voir la note
       fetchAppointmentDetails();
     } catch (error) {
       console.error('Erreur lors de la notation:', error);
@@ -134,7 +135,7 @@ const AppointmentDetails: React.FC = () => {
 
     try {
       await appointmentService.cancelAppointment(appointment!.id);
-      fetchAppointmentDetails(); // Recharger les détails
+      fetchAppointmentDetails();
     } catch (error) {
       console.error('Erreur annulation:', error);
       alert('Erreur lors de l\'annulation du rendez-vous');
