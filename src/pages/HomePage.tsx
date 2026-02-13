@@ -36,6 +36,7 @@ const HomePage: React.FC = () => {
       description: 'Prenez, modifiez ou annulez vos rendez-vous en ligne facilement',
       color: 'from-blue-500 to-cyan-400',
       bgColor: 'bg-blue-50',
+      iconColor: 'text-blue-600',
       delay: '0ms'
     },
     {
@@ -44,6 +45,7 @@ const HomePage: React.FC = () => {
       description: 'Accédez à votre dossier médical complet en quelques clics',
       color: 'from-purple-500 to-pink-400',
       bgColor: 'bg-purple-50',
+      iconColor: 'text-purple-600',
       delay: '100ms'
     },
     {
@@ -52,6 +54,7 @@ const HomePage: React.FC = () => {
       description: 'Recevez des rappels pour vos rendez-vous et traitements',
       color: 'from-emerald-500 to-teal-400',
       bgColor: 'bg-emerald-50',
+      iconColor: 'text-emerald-600',
       delay: '200ms'
     },
     {
@@ -60,6 +63,7 @@ const HomePage: React.FC = () => {
       description: 'Trouvez et consultez des professionnels de santé qualifiés',
       color: 'from-orange-500 to-amber-400',
       bgColor: 'bg-orange-50',
+      iconColor: 'text-orange-600',
       delay: '300ms'
     },
     {
@@ -68,6 +72,7 @@ const HomePage: React.FC = () => {
       description: 'Suivez vos médicaments et traitements au quotidien',
       color: 'from-indigo-500 to-blue-400',
       bgColor: 'bg-indigo-50',
+      iconColor: 'text-indigo-600',
       delay: '400ms'
     },
     {
@@ -76,6 +81,7 @@ const HomePage: React.FC = () => {
       description: "Visualisez l'évolution de votre santé dans le temps",
       color: 'from-teal-500 to-cyan-400',
       bgColor: 'bg-teal-50',
+      iconColor: 'text-teal-600',
       delay: '500ms'
     }
   ]
@@ -389,7 +395,7 @@ const HomePage: React.FC = () => {
                 <div className="relative mb-6">
                   <div className={`absolute inset-0 bg-gradient-to-br ${feature.color} rounded-2xl blur-xl opacity-20 group-hover:opacity-40 transition-opacity duration-500`}></div>
                   <div className={`relative ${feature.bgColor} rounded-2xl p-4 inline-flex group-hover:scale-110 transition-transform duration-300`}>
-                    <div className={`bg-gradient-to-br ${feature.color} bg-clip-text text-transparent`}>
+                    <div className={feature.iconColor}>
                       {feature.icon}
                     </div>
                   </div>
