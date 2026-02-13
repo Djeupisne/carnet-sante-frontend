@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom' // ✅ AJOUTER CET IMPORT
 import { authService, LoginData, RegisterData } from '../services/authService'
 
 export interface User {
@@ -82,7 +81,6 @@ const initialState: AuthState = {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState)
-  const navigate = useNavigate() // ✅ AJOUTER LE HOOK useNavigate
 
   useEffect(() => {
     checkAuthStatus()
@@ -204,7 +202,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
-  // ✅ FONCTION LOGOUT CORRIGÉE AVEC REDIRECTION
   const logout = () => {
     console.log('Logout...')
     localStorage.removeItem('token')
@@ -215,9 +212,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     authService.logout().catch((error) => {
       console.warn('Erreur logout API:', error)
     })
-
-    // ✅ REDIRECTION VERS LA PAGE D'ACCUEIL
-    navigate('/')
 
     setTimeout(() => {
       const event = new CustomEvent('showNotification', {
