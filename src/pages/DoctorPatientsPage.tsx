@@ -45,7 +45,7 @@ interface Patient {
   };
   lastAppointment?: string;
   totalAppointments?: number;
-  hasDetails?: boolean; // Nouveau champ pour savoir si on a les détails
+  hasDetails?: boolean;
 }
 
 interface Appointment {
@@ -105,44 +105,27 @@ const DoctorPatientsPage: React.FC = () => {
       setLoading(true);
       setError(null);
       console.log('👥 Récupération des patients...');
-      
-      // ✅ Étape 1: Récupérer tous les rendez-vous du médecin
       const appointments = await appointmentService.getAppointments();
-      
       if (!appointments || !Array.isArray(appointments)) {
         console.warn('⚠️ Aucun rendez-vous trouvé');
         setPatients([]);
         setFilteredPatients([]);
         return;
       }
-
-      // ✅ Étape 2: Filtrer les rendez-vous du médecin connecté
       const doctorAppointments = appointments.filter(
         apt => apt.doctorId === doctorUser?.id
       );
-
       console.log(`📊 ${doctorAppointments.length} rendez-vous trouvés pour le médecin`);
-
-      // ✅ Étape 3: Extraire les IDs uniques des patients
       const uniquePatientIds = [...new Set(doctorAppointments.map(apt => apt.patientId))];
-      
       console.log(`📋 ${uniquePatientIds.length} patients uniques identifiés`);
-
-      // ✅ Étape 4: Construire les données patients à partir des rendez-vous
       const patientsData: Patient[] = uniquePatientIds.map(patientId => {
-        // Récupérer tous les rendez-vous de ce patient avec ce médecin
         const patientAppointments = doctorAppointments.filter(
           apt => apt.patientId === patientId
         );
-
-        // Trier par date (plus récent d'abord)
         const sortedAppointments = patientAppointments.sort(
           (a, b) => new Date(b.appointmentDate).getTime() - new Date(a.appointmentDate).getTime()
         );
-
-        // Prendre le dernier rendez-vous pour les infos patient de base
         const lastAppointment = sortedAppointments[0];
-
         return {
           id: patientId,
           firstName: lastAppointment?.patient?.firstName || 'Patient',
@@ -151,17 +134,13 @@ const DoctorPatientsPage: React.FC = () => {
           phoneNumber: lastAppointment?.patient?.phoneNumber,
           lastAppointment: sortedAppointments[0]?.appointmentDate,
           totalAppointments: patientAppointments.length,
-          hasDetails: false // Par défaut, pas de détails
+          hasDetails: false
         };
       });
-
       console.log(`✅ ${patientsData.length} patients trouvés (données de base)`);
       setPatients(patientsData);
       setFilteredPatients(patientsData);
-
-      // ✅ Étape 5: Essayer de récupérer les détails complets en arrière-plan
       fetchPatientDetails(uniquePatientIds, patientsData);
-
     } catch (error) {
       console.error('❌ Erreur lors de la récupération des patients:', error);
       setError('Erreur lors du chargement des patients');
@@ -176,17 +155,11 @@ const DoctorPatientsPage: React.FC = () => {
   const fetchPatientDetails = async (patientIds: string[], basePatients: Patient[]) => {
     try {
       const enrichedPatients: Patient[] = [];
-
       for (const patientId of patientIds) {
         try {
-          // Récupérer les informations détaillées du patient
           const patientData = await userService.getUserById(patientId);
-          
-          // Récupérer le patient de base
           const basePatient = basePatients.find(p => p.id === patientId);
-          
           if (basePatient) {
-            // Fusionner les données
             enrichedPatients.push({
               ...basePatient,
               firstName: patientData?.firstName || basePatient.firstName,
@@ -199,28 +172,23 @@ const DoctorPatientsPage: React.FC = () => {
               bloodType: patientData?.bloodType,
               allergies: patientData?.allergies || [],
               emergencyContact: patientData?.emergencyContact,
-              hasDetails: true // ✅ On a réussi à avoir les détails
+              hasDetails: true
             });
           }
-
         } catch (error: any) {
           console.warn(`⚠️ Impossible de récupérer les détails du patient ${patientId}:`, error.message);
-          
-          // Garder les données de base
           const basePatient = basePatients.find(p => p.id === patientId);
           if (basePatient) {
             enrichedPatients.push({
               ...basePatient,
-              hasDetails: false // Pas de détails
+              hasDetails: false
             });
           }
         }
       }
-
       console.log(`✅ ${enrichedPatients.length} patients traités (${enrichedPatients.filter(p => p.hasDetails).length} avec détails)`);
       setPatients(enrichedPatients);
       setFilteredPatients(enrichedPatients);
-
     } catch (error) {
       console.error('❌ Erreur lors de l\'enrichissement des patients:', error);
     }
@@ -230,11 +198,9 @@ const DoctorPatientsPage: React.FC = () => {
     try {
       const appointments = await appointmentService.getAppointments();
       if (!appointments || !Array.isArray(appointments)) return;
-
       const patientAppointments = appointments
         .filter(apt => apt.patientId === patientId && apt.doctorId === doctorUser?.id)
         .sort((a, b) => new Date(b.appointmentDate).getTime() - new Date(a.appointmentDate).getTime());
-
       setPatientAppointments(patientAppointments);
     } catch (error) {
       console.error('❌ Erreur récupération rendez-vous patient:', error);
@@ -243,8 +209,6 @@ const DoctorPatientsPage: React.FC = () => {
 
   const filterPatients = () => {
     let filtered = [...patients];
-
-    // Filtre par recherche
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(
@@ -255,8 +219,6 @@ const DoctorPatientsPage: React.FC = () => {
           (p.phoneNumber && p.phoneNumber.toLowerCase().includes(term))
       );
     }
-
-    // Filtre par statut (récents / anciens)
     if (filterStatus === 'recent') {
       filtered = filtered.filter(p => {
         if (!p.lastAppointment) return false;
@@ -274,7 +236,6 @@ const DoctorPatientsPage: React.FC = () => {
         return lastApt < thirtyDaysAgo;
       });
     }
-
     setFilteredPatients(filtered);
   };
 
@@ -325,6 +286,113 @@ const DoctorPatientsPage: React.FC = () => {
     );
   };
 
+  const exportPatientsToCSV = () => {
+    try {
+      if (filteredPatients.length === 0) {
+        showNotification('Aucun patient à exporter', 'warning');
+        return;
+      }
+      const exportData = filteredPatients.map(patient => ({
+        'Nom': patient.lastName,
+        'Prénom': patient.firstName,
+        'Email': patient.email,
+        'Téléphone': patient.phoneNumber || 'Non renseigné',
+        'Dernier RDV': patient.lastAppointment ? formatDate(patient.lastAppointment) : 'Aucun',
+        'Heure dernier RDV': patient.lastAppointment ? 
+          new Date(patient.lastAppointment).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '',
+        'Total RDV': patient.totalAppointments || 0,
+        'Groupe sanguin': patient.bloodType || 'N/A',
+        'Date naissance': patient.dateOfBirth ? formatDate(patient.dateOfBirth) : 'N/A',
+        'Sexe': patient.gender || 'N/A',
+        'Allergies': patient.allergies?.join(', ') || 'Aucune',
+        'Contact urgence': patient.emergencyContact?.name || 'N/A',
+        'Tél. urgence': patient.emergencyContact?.phone || 'N/A'
+      }));
+      const headers = Object.keys(exportData[0]).join(';');
+      const rows = exportData.map(row => 
+        Object.values(row).map(value => 
+          typeof value === 'string' && value.includes(';') ? `"${value}"` : value
+        ).join(';')
+      );
+      const csv = [headers, ...rows].join('\n');
+      const bom = "\uFEFF";
+      const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      const date = new Date().toISOString().split('T')[0];
+      const fileName = `patients_${doctorUser?.lastName}_${date}.csv`;
+      link.setAttribute('href', url);
+      link.setAttribute('download', fileName);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      showNotification(`✅ ${exportData.length} patients exportés avec succès`, 'success');
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'export:', error);
+      showNotification('❌ Erreur lors de l\'export des patients', 'error');
+    }
+  };
+
+  const exportPatientsToPDF = async () => {
+    try {
+      showNotification('📄 Préparation du PDF...', 'info');
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        const html = `
+          <html>
+            <head>
+              <title>Liste des patients</title>
+              <style>
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                h1 { color: #333; }
+                table { border-collapse: collapse; width: 100%; }
+                th { background: #f0f0f0; padding: 8px; text-align: left; }
+                td { border: 1px solid #ddd; padding: 8px; }
+                tr:nth-child(even) { background: #f9f9f9; }
+              </style>
+            </head>
+            <body>
+              <h1>Liste des patients - Dr. ${doctorUser?.lastName}</h1>
+              <p>Date d'export : ${new Date().toLocaleDateString('fr-FR')}</p>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Nom</th>
+                    <th>Prénom</th>
+                    <th>Email</th>
+                    <th>Téléphone</th>
+                    <th>Dernier RDV</th>
+                    <th>Total RDV</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${filteredPatients.map(patient => `
+                    <tr>
+                      <td>${patient.lastName}</td>
+                      <td>${patient.firstName}</td>
+                      <td>${patient.email}</td>
+                      <td>${patient.phoneNumber || 'N/A'}</td>
+                      <td>${patient.lastAppointment ? formatDate(patient.lastAppointment) : 'Aucun'}</td>
+                      <td>${patient.totalAppointments || 0}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </body>
+          </html>
+        `;
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.print();
+      }
+    } catch (error) {
+      console.error('❌ Erreur PDF:', error);
+      showNotification('❌ Erreur lors de la génération du PDF', 'error');
+    }
+  };
+
   const handleLogout = () => {
     if (window.confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
       try {
@@ -338,7 +406,6 @@ const DoctorPatientsPage: React.FC = () => {
 
   return (
     <div className="min-h-screen p-6 space-y-6">
-      {/* HEADER */}
       <div className="futuristic-card p-6 animate-slide-in">
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-4">
@@ -360,14 +427,12 @@ const DoctorPatientsPage: React.FC = () => {
               </p>
             </div>
           </div>
-          
           <div className="flex items-center gap-4">
             <div className="relative">
               <button className="p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 hover:bg-white/20 transition-all duration-300">
                 <Bell className="w-5 h-5 text-white" />
               </button>
             </div>
-            
             <button
               onClick={handleLogout}
               className="futuristic-btn-secondary flex items-center gap-2 hover:scale-105"
@@ -379,8 +444,6 @@ const DoctorPatientsPage: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* MESSAGE D'ERREUR */}
       {error && (
         <div className="futuristic-card p-4 border-red-500/50 bg-red-500/10 animate-slide-in">
           <div className="flex items-center gap-3">
@@ -389,8 +452,6 @@ const DoctorPatientsPage: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* MODAL DÉTAILS PATIENT */}
       {showPatientDetails && selectedPatient && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="futuristic-card max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -412,7 +473,6 @@ const DoctorPatientsPage: React.FC = () => {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-
               {!selectedPatient.hasDetails && (
                 <div className="mb-4 p-3 bg-blue-500/20 border border-blue-500/30 rounded-lg flex items-center gap-2">
                   <Info className="w-4 h-4 text-blue-400" />
@@ -421,9 +481,7 @@ const DoctorPatientsPage: React.FC = () => {
                   </span>
                 </div>
               )}
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Informations personnelles */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-blue-400 mb-3">Informations personnelles</h3>
                   <div className="bg-white/5 rounded-xl p-4 space-y-3">
@@ -464,8 +522,6 @@ const DoctorPatientsPage: React.FC = () => {
                     )}
                   </div>
                 </div>
-
-                {/* Informations médicales */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-green-400 mb-3">Informations médicales</h3>
                   <div className="bg-white/5 rounded-xl p-4 space-y-3">
@@ -490,7 +546,6 @@ const DoctorPatientsPage: React.FC = () => {
                       </div>
                     )}
                   </div>
-
                   {selectedPatient.hasDetails && selectedPatient.emergencyContact && (
                     <>
                       <h3 className="text-lg font-semibold text-yellow-400 mb-3">Contact d'urgence</h3>
@@ -503,8 +558,6 @@ const DoctorPatientsPage: React.FC = () => {
                   )}
                 </div>
               </div>
-
-              {/* Historique des rendez-vous */}
               <div className="mt-6">
                 <h3 className="text-lg font-semibold text-purple-400 mb-3">Historique des rendez-vous</h3>
                 <div className="space-y-3 max-h-60 overflow-y-auto">
@@ -535,8 +588,6 @@ const DoctorPatientsPage: React.FC = () => {
                   )}
                 </div>
               </div>
-
-              {/* Statistiques */}
               <div className="mt-6 grid grid-cols-3 gap-4">
                 <div className="bg-white/5 rounded-xl p-4 text-center">
                   <p className="text-2xl font-bold text-blue-400">{selectedPatient.totalAppointments || 0}</p>
@@ -559,10 +610,7 @@ const DoctorPatientsPage: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* CONTENU PRINCIPAL */}
       <div className="futuristic-card p-6">
-        {/* En-tête */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div>
             <h2 className="text-2xl font-bold text-white">Mes patients</h2>
@@ -570,9 +618,7 @@ const DoctorPatientsPage: React.FC = () => {
               {filteredPatients.length} patient{filteredPatients.length > 1 ? 's' : ''} trouvé{filteredPatients.length > 1 ? 's' : ''}
             </p>
           </div>
-
           <div className="flex gap-3 w-full sm:w-auto">
-            {/* Recherche */}
             <div className="relative flex-1 sm:flex-initial">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
@@ -583,8 +629,6 @@ const DoctorPatientsPage: React.FC = () => {
                 className="futuristic-input pl-10"
               />
             </div>
-
-            {/* Filtres */}
             <div className="relative group">
               <button className="p-3 bg-white/5 backdrop-blur-md border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-300">
                 <Filter className="w-5 h-5 text-gray-400" />
@@ -618,15 +662,35 @@ const DoctorPatientsPage: React.FC = () => {
                 </div>
               </div>
             </div>
-
-            {/* Export */}
-            <button className="p-3 bg-white/5 backdrop-blur-md border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-300">
-              <Download className="w-5 h-5 text-gray-400" />
-            </button>
+            <div className="relative group">
+              <button className="p-3 bg-white/5 backdrop-blur-md border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-300">
+                <Download className="w-5 h-5 text-gray-400" />
+              </button>
+              <div className="absolute right-0 mt-2 w-48 bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
+                <div className="p-2">
+                  <button
+                    onClick={exportPatientsToCSV}
+                    className="w-full text-left px-4 py-2 rounded-lg text-sm text-gray-300 hover:bg-white/10 transition-colors"
+                  >
+                    📄 Exporter en CSV
+                  </button>
+                  <button
+                    onClick={exportPatientsToPDF}
+                    className="w-full text-left px-4 py-2 rounded-lg text-sm text-gray-300 hover:bg-white/10 transition-colors"
+                  >
+                    📑 Exporter en PDF
+                  </button>
+                  <button
+                    onClick={() => window.print()}
+                    className="w-full text-left px-4 py-2 rounded-lg text-sm text-gray-300 hover:bg-white/10 transition-colors"
+                  >
+                    🖨️ Imprimer
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-
-        {/* Liste des patients */}
         {loading ? (
           <div className="text-center py-12">
             <div className="w-16 h-16 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin mx-auto mb-4"></div>
@@ -686,7 +750,6 @@ const DoctorPatientsPage: React.FC = () => {
                         </div>
                       </div>
                     </div>
-
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                       <div className="bg-white/5 rounded-lg p-3">
                         <p className="text-xs text-gray-400 mb-1">Dernier rendez-vous</p>
@@ -703,7 +766,6 @@ const DoctorPatientsPage: React.FC = () => {
                         <p className="font-medium text-white">{patient.bloodType || 'N/A'}</p>
                       </div>
                     </div>
-
                     {patient.hasDetails && patient.allergies && patient.allergies.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-2">
                         {patient.allergies.map((allergy, index) => (
@@ -714,7 +776,6 @@ const DoctorPatientsPage: React.FC = () => {
                       </div>
                     )}
                   </div>
-
                   <div className="flex items-center gap-2 ml-4">
                     <button
                       onClick={(e) => {
