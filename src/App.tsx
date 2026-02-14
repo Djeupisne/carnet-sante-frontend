@@ -4,7 +4,7 @@ import { Provider } from 'react-redux'
 import { store } from './store/store'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { NotificationProvider } from './context/NotificationContext'
-
+import DoctorCalendarPage from './pages/DoctorCalendarPage';
 // Pages
 import HomePage from './pages/HomePage'
 import Login from './components/Auth/Login'
@@ -84,7 +84,14 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
-              
+              <Route 
+  path="/doctor/calendar" 
+  element={
+    <ProtectedRoute>
+      <DoctorCalendarPage />
+    </ProtectedRoute>
+  } 
+/>
               {/* Routes patient */}
               <Route 
                 path="/appointments" 
