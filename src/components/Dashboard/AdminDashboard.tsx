@@ -39,6 +39,7 @@ import { adminService, User as UserType, DashboardStats } from '../../services/a
 import { calendarService } from '../../services/calendarService';
 import UserManagement from '../../components/Admin/UserManagement';
 import AppointmentManagement from '../../components/Admin/AppointmentManagement';
+import FinancialReports from '../../components/Admin/FinancialReports';
 
 interface Calendar {
   id: string;
@@ -577,7 +578,7 @@ const AdminDashboard: React.FC = () => {
                 </h2>
               </div>
             </div>
-            <p className="text-gray-600">Page en cours de développement...</p>
+            <FinancialReports />
           </div>
         )}
 
