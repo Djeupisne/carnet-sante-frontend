@@ -26,7 +26,8 @@ import {
   Printer,
   Mail,
   RefreshCw,
-  Eye
+  Eye,
+  ChevronRight
 } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import { useNotification } from '../../context/NotificationContext';
@@ -79,6 +80,7 @@ const FinancialReports: React.FC = () => {
   const [selectedDoctor, setSelectedDoctor] = useState<string>('all');
   const [dateRange, setDateRange] = useState<'all' | 'today' | 'week' | 'month' | 'year'>('all');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [summary, setSummary] = useState({
@@ -104,16 +106,13 @@ const FinancialReports: React.FC = () => {
     try {
       setLoading(true);
       
-      // Récupérer les statistiques financières par médecin
       const statsResponse = await adminService.getDoctorFinancialStats();
       if (statsResponse.success) {
         setDoctorStats(statsResponse.data);
       }
 
-      // Récupérer toutes les transactions/paiements
       const paymentsResponse = await adminService.getAllAppointments();
       if (paymentsResponse.success) {
-        // Transformer les rendez-vous en paiements (avec données de paiement)
         const transformedPayments = transformAppointmentsToPayments(paymentsResponse.data);
         setPayments(transformedPayments);
         setFilteredPayments(transformedPayments);
@@ -129,7 +128,7 @@ const FinancialReports: React.FC = () => {
 
   const transformAppointmentsToPayments = (appointments: any[]): Payment[] => {
     return appointments
-      .filter(apt => apt.payment) // Ne garder que les rendez-vous avec paiement
+      .filter(apt => apt.payment)
       .map(apt => ({
         id: apt.payment.id,
         amount: apt.payment.amount,
@@ -159,7 +158,6 @@ const FinancialReports: React.FC = () => {
   const filterPayments = () => {
     let filtered = [...payments];
 
-    // Filtre par recherche
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(
@@ -172,17 +170,14 @@ const FinancialReports: React.FC = () => {
       );
     }
 
-    // Filtre par statut
     if (statusFilter !== 'all') {
       filtered = filtered.filter(p => p.status === statusFilter);
     }
 
-    // Filtre par médecin
     if (selectedDoctor !== 'all') {
       filtered = filtered.filter(p => p.appointment?.doctor?.id === selectedDoctor);
     }
 
-    // Filtre par date
     if (dateRange !== 'all') {
       const now = new Date();
       const today = new Date(now.setHours(0, 0, 0, 0));
@@ -248,6 +243,14 @@ const FinancialReports: React.FC = () => {
     });
   };
 
+  const formatDateShort = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
+
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       pending: { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200', icon: Clock, label: 'En attente' },
@@ -266,7 +269,8 @@ const FinancialReports: React.FC = () => {
     );
   };
 
-  const exportToCSV = () => {
+  // Options d'export
+  const exportTransactionsToCSV = () => {
     try {
       const headers = ['Date', 'Transaction ID', 'Médecin', 'Patient', 'Montant', 'Statut', 'Méthode'];
       const rows = filteredPayments.map(p => [
@@ -275,7 +279,9 @@ const FinancialReports: React.FC = () => {
         `${p.appointment?.doctor?.firstName || ''} ${p.appointment?.doctor?.lastName || ''}`.trim() || 'N/A',
         `${p.appointment?.patient?.firstName || ''} ${p.appointment?.patient?.lastName || ''}`.trim() || 'N/A',
         p.amount,
-        p.status,
+        p.status === 'pending' ? 'En attente' :
+        p.status === 'completed' ? 'Complété' :
+        p.status === 'failed' ? 'Échoué' : 'Remboursé',
         p.paymentMethod
       ]);
 
@@ -286,13 +292,157 @@ const FinancialReports: React.FC = () => {
       const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
+      const dateStr = new Date().toISOString().split('T')[0];
       link.setAttribute('href', url);
-      link.setAttribute('download', `rapport_financier_${new Date().toISOString().split('T')[0]}.csv`);
+      link.setAttribute('download', `transactions_${dateStr}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
-      showNotification('✅ Rapport exporté avec succès', 'success');
+      showNotification(`✅ ${filteredPayments.length} transactions exportées`, 'success');
+    } catch (error) {
+      console.error('❌ Erreur export:', error);
+      showNotification('❌ Erreur lors de l\'export', 'error');
+    }
+  };
+
+  const exportDoctorStatsToCSV = () => {
+    try {
+      const headers = ['Médecin', 'Spécialité', 'Consultations', 'Complétées', 'Revenu brut', 'Commission', 'Revenu net', 'Moyenne/consultation'];
+      const rows = doctorStats.map(d => [
+        d.doctorName,
+        d.specialty,
+        d.totalAppointments,
+        d.completedAppointments,
+        d.totalRevenue,
+        d.commission,
+        d.netRevenue,
+        d.averagePerAppointment
+      ]);
+
+      const csvContent = [headers, ...rows]
+        .map(row => row.map(cell => `"${cell}"`).join(','))
+        .join('\n');
+
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      const dateStr = new Date().toISOString().split('T')[0];
+      link.setAttribute('href', url);
+      link.setAttribute('download', `statistiques_medecins_${dateStr}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      showNotification(`✅ Statistiques de ${doctorStats.length} médecins exportées`, 'success');
+    } catch (error) {
+      console.error('❌ Erreur export:', error);
+      showNotification('❌ Erreur lors de l\'export', 'error');
+    }
+  };
+
+  const exportSummaryToCSV = () => {
+    try {
+      const rows = [
+        ['RÉSUMÉ FINANCIER'],
+        [`Généré le ${new Date().toLocaleDateString('fr-FR')}`],
+        [''],
+        ['Indicateur', 'Valeur'],
+        ['Revenus totaux', formatCurrency(summary.totalRevenue)],
+        ['Commission (10%)', formatCurrency(summary.totalCommission)],
+        ['Revenu net', formatCurrency(summary.netRevenue)],
+        ['Nombre de transactions', summary.totalTransactions],
+        ['Moyenne par transaction', formatCurrency(summary.averageTransaction)],
+        ['Paiements en attente', formatCurrency(summary.pendingPayments)],
+        ['Paiements complétés', formatCurrency(summary.completedPayments)]
+      ];
+
+      const csvContent = rows.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      const dateStr = new Date().toISOString().split('T')[0];
+      link.setAttribute('href', url);
+      link.setAttribute('download', `resume_financier_${dateStr}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      showNotification(`✅ Résumé financier exporté`, 'success');
+    } catch (error) {
+      console.error('❌ Erreur export:', error);
+      showNotification('❌ Erreur lors de l\'export', 'error');
+    }
+  };
+
+  const exportCompleteReportToCSV = () => {
+    try {
+      const summaryRows = [
+        ['RAPPORT FINANCIER COMPLET'],
+        [`Généré le ${new Date().toLocaleString('fr-FR')}`],
+        [''],
+        ['RÉSUMÉ GÉNÉRAL'],
+        ['Indicateur', 'Valeur'],
+        ['Revenus totaux', formatCurrency(summary.totalRevenue)],
+        ['Commission (10%)', formatCurrency(summary.totalCommission)],
+        ['Revenu net', formatCurrency(summary.netRevenue)],
+        ['Nombre de transactions', summary.totalTransactions],
+        ['Moyenne par transaction', formatCurrency(summary.averageTransaction)],
+        ['Paiements en attente', formatCurrency(summary.pendingPayments)],
+        ['Paiements complétés', formatCurrency(summary.completedPayments)],
+        ['']
+      ];
+
+      const doctorHeaders = ['MÉDECINS', 'Spécialité', 'Consultations', 'Complétées', 'Revenu brut', 'Commission', 'Revenu net', 'Moyenne'];
+      const doctorRows = doctorStats.map(d => [
+        d.doctorName,
+        d.specialty,
+        d.totalAppointments,
+        d.completedAppointments,
+        formatCurrency(d.totalRevenue),
+        formatCurrency(d.commission),
+        formatCurrency(d.netRevenue),
+        formatCurrency(d.averagePerAppointment)
+      ]);
+
+      const transactionHeaders = ['TRANSACTIONS', 'Date', 'Médecin', 'Patient', 'Montant', 'Statut', 'Méthode'];
+      const transactionRows = filteredPayments.slice(0, 50).map(p => [
+        p.transactionId,
+        formatDate(p.createdAt),
+        `${p.appointment?.doctor?.firstName || ''} ${p.appointment?.doctor?.lastName || ''}`.trim() || 'N/A',
+        `${p.appointment?.patient?.firstName || ''} ${p.appointment?.patient?.lastName || ''}`.trim() || 'N/A',
+        formatCurrency(p.amount),
+        p.status === 'pending' ? 'En attente' :
+        p.status === 'completed' ? 'Complété' :
+        p.status === 'failed' ? 'Échoué' : 'Remboursé',
+        p.paymentMethod
+      ]);
+
+      const allRows = [
+        ...summaryRows,
+        ['STATISTIQUES PAR MÉDECIN'],
+        ...doctorHeaders,
+        ...doctorRows,
+        [''],
+        [`TRANSACTIONS RÉCENTES (${Math.min(50, filteredPayments.length)} sur ${filteredPayments.length})`],
+        ...transactionHeaders,
+        ...transactionRows
+      ];
+
+      const csvContent = allRows.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      const dateStr = new Date().toISOString().split('T')[0];
+      link.setAttribute('href', url);
+      link.setAttribute('download', `rapport_complet_${dateStr}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      showNotification(`✅ Rapport complet exporté`, 'success');
     } catch (error) {
       console.error('❌ Erreur export:', error);
       showNotification('❌ Erreur lors de l\'export', 'error');
@@ -318,29 +468,211 @@ const FinancialReports: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex gap-3">
-          {/* Filtre par date */}
-          <select
-            value={dateRange}
-            onChange={(e) => setDateRange(e.target.value as any)}
-            className="px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent shadow-sm"
-          >
-            <option value="all">Toutes les dates</option>
-            <option value="today">Aujourd'hui</option>
-            <option value="week">7 derniers jours</option>
-            <option value="month">30 derniers jours</option>
-            <option value="year">Cette année</option>
-          </select>
+        <div className="flex flex-wrap gap-3">
+          {/* Filtre par date - Plus visible */}
+          <div className="relative">
+            <button
+              onClick={() => setShowFilterMenu(!showFilterMenu)}
+              className="px-4 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all hover:shadow-lg flex items-center gap-2 shadow-md"
+            >
+              <Filter className="w-4 h-4" />
+              <span>Filtres</span>
+              <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${showFilterMenu ? 'rotate-180' : ''}`} />
+            </button>
 
-          {/* Bouton export */}
-          <button
-            onClick={exportToCSV}
-            disabled={filteredPayments.length === 0}
-            className="px-4 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all hover:shadow-lg hover:scale-105 flex items-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Download className="w-4 h-4" />
-            <span className="font-medium">Export CSV</span>
-          </button>
+            {showFilterMenu && (
+              <div className="absolute right-0 mt-2 w-72 bg-white border border-gray-200 rounded-xl shadow-xl z-50 animate-slide-down">
+                <div className="p-4">
+                  <h3 className="font-medium text-gray-900 mb-3">Période</h3>
+                  <div className="space-y-2 mb-4">
+                    {[
+                      { value: 'all', label: 'Toutes les dates' },
+                      { value: 'today', label: 'Aujourd\'hui' },
+                      { value: 'week', label: '7 derniers jours' },
+                      { value: 'month', label: '30 derniers jours' },
+                      { value: 'year', label: 'Cette année' }
+                    ].map(option => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          setDateRange(option.value as any);
+                          setShowFilterMenu(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition ${
+                          dateRange === option.value
+                            ? 'bg-green-100 text-green-700 border border-green-200'
+                            : 'hover:bg-gray-100 text-gray-700'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <h3 className="font-medium text-gray-900 mb-3">Statut</h3>
+                  <div className="space-y-2 mb-4">
+                    {[
+                      { value: 'all', label: 'Tous les statuts' },
+                      { value: 'pending', label: 'En attente' },
+                      { value: 'completed', label: 'Complétés' },
+                      { value: 'failed', label: 'Échoués' },
+                      { value: 'refunded', label: 'Remboursés' }
+                    ].map(option => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          setStatusFilter(option.value);
+                          setShowFilterMenu(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition ${
+                          statusFilter === option.value
+                            ? 'bg-green-100 text-green-700 border border-green-200'
+                            : 'hover:bg-gray-100 text-gray-700'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {doctorStats.length > 0 && (
+                    <>
+                      <h3 className="font-medium text-gray-900 mb-3">Médecin</h3>
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        <button
+                          onClick={() => {
+                            setSelectedDoctor('all');
+                            setShowFilterMenu(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 rounded-lg text-sm transition ${
+                            selectedDoctor === 'all'
+                              ? 'bg-green-100 text-green-700 border border-green-200'
+                              : 'hover:bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          Tous les médecins
+                        </button>
+                        {doctorStats.map(doctor => (
+                          <button
+                            key={doctor.doctorId}
+                            onClick={() => {
+                              setSelectedDoctor(doctor.doctorId);
+                              setShowFilterMenu(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition ${
+                              selectedDoctor === doctor.doctorId
+                                ? 'bg-green-100 text-green-700 border border-green-200'
+                                : 'hover:bg-gray-100 text-gray-700'
+                            }`}
+                          >
+                            {doctor.doctorName}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Menu d'export - Plusieurs options */}
+          <div className="relative">
+            <button
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              disabled={filteredPayments.length === 0 && doctorStats.length === 0}
+              className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all hover:shadow-lg flex items-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download className="w-4 h-4" />
+              <span>Export</span>
+              <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${showExportMenu ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showExportMenu && (
+              <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-xl z-50 animate-slide-down">
+                <div className="p-2">
+                  <button
+                    onClick={() => {
+                      exportTransactionsToCSV();
+                      setShowExportMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-3 rounded-lg text-sm transition hover:bg-blue-50 flex items-center gap-3 group"
+                  >
+                    <div className="p-2 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition">
+                      <CreditCard className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">Transactions</p>
+                      <p className="text-xs text-gray-500">Exporter les transactions filtrées</p>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      exportDoctorStatsToCSV();
+                      setShowExportMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-3 rounded-lg text-sm transition hover:bg-purple-50 flex items-center gap-3 group"
+                  >
+                    <div className="p-2 bg-purple-100 rounded-lg group-hover:bg-purple-200 transition">
+                      <Users className="w-4 h-4 text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">Statistiques médecins</p>
+                      <p className="text-xs text-gray-500">Performances par médecin</p>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      exportSummaryToCSV();
+                      setShowExportMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-3 rounded-lg text-sm transition hover:bg-orange-50 flex items-center gap-3 group"
+                  >
+                    <div className="p-2 bg-orange-100 rounded-lg group-hover:bg-orange-200 transition">
+                      <PieChart className="w-4 h-4 text-orange-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">Résumé financier</p>
+                      <p className="text-xs text-gray-500">Indicateurs clés uniquement</p>
+                    </div>
+                  </button>
+
+                  <div className="border-t border-gray-200 my-2"></div>
+
+                  <button
+                    onClick={() => {
+                      exportCompleteReportToCSV();
+                      setShowExportMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-3 rounded-lg text-sm transition hover:bg-green-50 flex items-center gap-3 group"
+                  >
+                    <div className="p-2 bg-green-100 rounded-lg group-hover:bg-green-200 transition">
+                      <FileText className="w-4 h-4 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">Rapport complet</p>
+                      <p className="text-xs text-gray-500">Toutes les données combinées</p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-gray-400 ml-auto" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Bouton recherche */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Rechercher..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent shadow-sm w-64"
+            />
+          </div>
         </div>
       </div>
 
@@ -460,59 +792,10 @@ const FinancialReports: React.FC = () => {
 
       {/* Liste des transactions */}
       <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-        <div className="flex flex-wrap gap-4 mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2 flex-1">
-            <CreditCard className="w-5 h-5 text-green-600" />
-            Transactions récentes
-          </h3>
-
-          {/* Filtres */}
-          <div className="flex flex-wrap gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Rechercher..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-            >
-              <option value="all">Tous les statuts</option>
-              <option value="pending">En attente</option>
-              <option value="completed">Complétés</option>
-              <option value="failed">Échoués</option>
-              <option value="refunded">Remboursés</option>
-            </select>
-
-            <select
-              value={selectedDoctor}
-              onChange={(e) => setSelectedDoctor(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-            >
-              <option value="all">Tous les médecins</option>
-              {doctorStats.map(doctor => (
-                <option key={doctor.doctorId} value={doctor.doctorId}>
-                  {doctor.doctorName}
-                </option>
-              ))}
-            </select>
-
-            <button
-              onClick={fetchFinancialData}
-              className="p-2 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition"
-              title="Actualiser"
-            >
-              <RefreshCw className="w-5 h-5 text-gray-600" />
-            </button>
-          </div>
-        </div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <CreditCard className="w-5 h-5 text-green-600" />
+          Transactions récentes
+        </h3>
 
         {loading ? (
           <div className="text-center py-8">
@@ -699,6 +982,23 @@ const FinancialReports: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Styles pour l'animation */}
+      <style>{`
+        @keyframes slide-down {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-slide-down {
+          animation: slide-down 0.2s ease-out;
+        }
+      `}</style>
     </div>
   );
 };
