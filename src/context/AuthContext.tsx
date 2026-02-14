@@ -219,6 +219,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
       window.dispatchEvent(event)
     }, 100)
+
+    // Redirection automatique vers la page d'accueil après déconnexion
+    setTimeout(() => {
+      window.location.href = '/'
+    }, 200)
   }
 
   const updateUser = (user: User) => {
