@@ -478,20 +478,21 @@ const DoctorDashboard: React.FC = () => {
             Actions rapides
           </h3>
           <div className="space-y-3">
-            <button 
-              onClick={() => window.location.href = '/doctor/calendar'}
-              className="w-full text-left p-4 bg-white/5 backdrop-blur-md border border-white/10 rounded-xl hover:bg-white/10 hover:border-white/20 transition-all duration-300 group"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className="p-2 bg-blue-500/20 rounded-lg mr-3 group-hover:bg-blue-500/30 transition-colors">
-                    <Calendar className="h-5 w-5 text-blue-400" />
-                  </div>
-                  <span className="text-white font-medium">Gérer mes disponibilités</span>
-                </div>
-                <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
-              </div>
-            </button>
+           
+<Link
+  to="/doctor/calendar"
+  className="w-full text-left p-4 bg-white/5 backdrop-blur-md border border-white/10 rounded-xl hover:bg-white/10 hover:border-white/20 transition-all duration-300 group"
+>
+  <div className="flex items-center justify-between">
+    <div className="flex items-center">
+      <div className="p-2 bg-blue-500/20 rounded-lg mr-3 group-hover:bg-blue-500/30 transition-colors">
+        <Calendar className="h-5 w-5 text-blue-400" />
+      </div>
+      <span className="text-white font-medium">Gérer mes disponibilités</span>
+    </div>
+    <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
+  </div>
+</Link>
             
             <Link
               to="/doctor/patients"
