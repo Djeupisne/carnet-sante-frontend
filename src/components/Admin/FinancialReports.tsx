@@ -27,7 +27,9 @@ import {
   Mail,
   RefreshCw,
   Eye,
-  ChevronRight
+  ChevronRight,
+  User,
+  Stethoscope
 } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import { useNotification } from '../../context/NotificationContext';
@@ -69,6 +71,26 @@ interface Payment {
   };
 }
 
+interface TransactionStats {
+  totalAmount: number;
+  averageAmount: number;
+  count: number;
+  byStatus: {
+    pending: number;
+    completed: number;
+    failed: number;
+    refunded: number;
+  };
+  byPaymentMethod: {
+    [key: string]: number;
+  };
+  topDoctors: Array<{
+    name: string;
+    amount: number;
+    count: number;
+  }>;
+}
+
 const FinancialReports: React.FC = () => {
   const { showNotification } = useNotification();
   const [loading, setLoading] = useState(true);
@@ -83,6 +105,19 @@ const FinancialReports: React.FC = () => {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [transactionStats, setTransactionStats] = useState<TransactionStats>({
+    totalAmount: 0,
+    averageAmount: 0,
+    count: 0,
+    byStatus: {
+      pending: 0,
+      completed: 0,
+      failed: 0,
+      refunded: 0
+    },
+    byPaymentMethod: {},
+    topDoctors: []
+  });
   const [summary, setSummary] = useState({
     totalRevenue: 0,
     totalCommission: 0,
@@ -100,6 +135,7 @@ const FinancialReports: React.FC = () => {
   useEffect(() => {
     filterPayments();
     calculateSummary();
+    calculateTransactionStats();
   }, [payments, searchTerm, statusFilter, selectedDoctor, dateRange]);
 
   const fetchFinancialData = async () => {
@@ -226,6 +262,52 @@ const FinancialReports: React.FC = () => {
       averageTransaction: filteredPayments.length ? totalRevenue / filteredPayments.length : 0,
       pendingPayments,
       completedPayments
+    });
+  };
+
+  const calculateTransactionStats = () => {
+    const totalAmount = filteredPayments.reduce((sum, p) => sum + p.amount, 0);
+    const count = filteredPayments.length;
+    
+    const byStatus = {
+      pending: filteredPayments.filter(p => p.status === 'pending').reduce((sum, p) => sum + p.amount, 0),
+      completed: filteredPayments.filter(p => p.status === 'completed').reduce((sum, p) => sum + p.amount, 0),
+      failed: filteredPayments.filter(p => p.status === 'failed').reduce((sum, p) => sum + p.amount, 0),
+      refunded: filteredPayments.filter(p => p.status === 'refunded').reduce((sum, p) => sum + p.amount, 0)
+    };
+
+    const byPaymentMethod: { [key: string]: number } = {};
+    filteredPayments.forEach(p => {
+      const method = p.paymentMethod;
+      byPaymentMethod[method] = (byPaymentMethod[method] || 0) + p.amount;
+    });
+
+    // Top médecins par montant
+    const doctorMap = new Map<string, { name: string; amount: number; count: number }>();
+    filteredPayments.forEach(p => {
+      if (p.appointment?.doctor) {
+        const doctorId = p.appointment.doctor.id;
+        const doctorName = `Dr. ${p.appointment.doctor.firstName} ${p.appointment.doctor.lastName}`;
+        const current = doctorMap.get(doctorId) || { name: doctorName, amount: 0, count: 0 };
+        doctorMap.set(doctorId, {
+          name: doctorName,
+          amount: current.amount + p.amount,
+          count: current.count + 1
+        });
+      }
+    });
+
+    const topDoctors = Array.from(doctorMap.values())
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 5);
+
+    setTransactionStats({
+      totalAmount,
+      averageAmount: count ? totalAmount / count : 0,
+      count,
+      byStatus,
+      byPaymentMethod,
+      topDoctors
     });
   };
 
@@ -469,76 +551,104 @@ const FinancialReports: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap gap-3">
-          {/* Filtre par date - Plus visible */}
+          {/* Barre de recherche - Plus visible */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Rechercher transaction, médecin, patient..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-80 pl-12 pr-4 py-3 bg-white border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent shadow-sm text-gray-900 placeholder-gray-500"
+            />
+          </div>
+
+          {/* Bouton Filtre */}
           <div className="relative">
             <button
               onClick={() => setShowFilterMenu(!showFilterMenu)}
-              className="px-4 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all hover:shadow-lg flex items-center gap-2 shadow-md"
+              className="px-5 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all hover:shadow-lg flex items-center gap-2 shadow-md"
             >
-              <Filter className="w-4 h-4" />
-              <span>Filtres</span>
-              <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${showFilterMenu ? 'rotate-180' : ''}`} />
+              <Filter className="w-5 h-5" />
+              <span className="font-medium">Filtres</span>
+              <ChevronDown className={`w-5 h-5 transition-transform duration-300 ${showFilterMenu ? 'rotate-180' : ''}`} />
             </button>
 
             {showFilterMenu && (
-              <div className="absolute right-0 mt-2 w-72 bg-white border border-gray-200 rounded-xl shadow-xl z-50 animate-slide-down">
-                <div className="p-4">
-                  <h3 className="font-medium text-gray-900 mb-3">Période</h3>
-                  <div className="space-y-2 mb-4">
-                    {[
-                      { value: 'all', label: 'Toutes les dates' },
-                      { value: 'today', label: 'Aujourd\'hui' },
-                      { value: 'week', label: '7 derniers jours' },
-                      { value: 'month', label: '30 derniers jours' },
-                      { value: 'year', label: 'Cette année' }
-                    ].map(option => (
-                      <button
-                        key={option.value}
-                        onClick={() => {
-                          setDateRange(option.value as any);
-                          setShowFilterMenu(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition ${
-                          dateRange === option.value
-                            ? 'bg-green-100 text-green-700 border border-green-200'
-                            : 'hover:bg-gray-100 text-gray-700'
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
+              <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-50 animate-slide-down">
+                <div className="p-5 space-y-6">
+                  {/* Période */}
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-green-600" />
+                      Période
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { value: 'all', label: 'Toutes' },
+                        { value: 'today', label: 'Aujourd\'hui' },
+                        { value: 'week', label: '7 jours' },
+                        { value: 'month', label: '30 jours' },
+                        { value: 'year', label: 'Cette année' }
+                      ].map(option => (
+                        <button
+                          key={option.value}
+                          onClick={() => {
+                            setDateRange(option.value as any);
+                            setShowFilterMenu(false);
+                          }}
+                          className={`px-3 py-2 rounded-lg text-sm transition ${
+                            dateRange === option.value
+                              ? 'bg-green-100 text-green-700 border border-green-200 font-medium'
+                              : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
-                  <h3 className="font-medium text-gray-900 mb-3">Statut</h3>
-                  <div className="space-y-2 mb-4">
-                    {[
-                      { value: 'all', label: 'Tous les statuts' },
-                      { value: 'pending', label: 'En attente' },
-                      { value: 'completed', label: 'Complétés' },
-                      { value: 'failed', label: 'Échoués' },
-                      { value: 'refunded', label: 'Remboursés' }
-                    ].map(option => (
-                      <button
-                        key={option.value}
-                        onClick={() => {
-                          setStatusFilter(option.value);
-                          setShowFilterMenu(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition ${
-                          statusFilter === option.value
-                            ? 'bg-green-100 text-green-700 border border-green-200'
-                            : 'hover:bg-gray-100 text-gray-700'
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
+                  {/* Statut */}
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-orange-600" />
+                      Statut
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { value: 'all', label: 'Tous', color: 'gray' },
+                        { value: 'pending', label: 'En attente', color: 'yellow' },
+                        { value: 'completed', label: 'Complétés', color: 'green' },
+                        { value: 'failed', label: 'Échoués', color: 'red' },
+                        { value: 'refunded', label: 'Remboursés', color: 'purple' }
+                      ].map(option => (
+                        <button
+                          key={option.value}
+                          onClick={() => {
+                            setStatusFilter(option.value);
+                            setShowFilterMenu(false);
+                          }}
+                          className={`px-3 py-2 rounded-lg text-sm transition ${
+                            statusFilter === option.value
+                              ? `bg-${option.color}-100 text-${option.color}-700 border border-${option.color}-200 font-medium`
+                              : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
+                  {/* Médecins */}
                   {doctorStats.length > 0 && (
-                    <>
-                      <h3 className="font-medium text-gray-900 mb-3">Médecin</h3>
-                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                    <div>
+                      <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                        <Stethoscope className="w-4 h-4 text-blue-600" />
+                        Médecins
+                      </h3>
+                      <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
                         <button
                           onClick={() => {
                             setSelectedDoctor('all');
@@ -546,8 +656,8 @@ const FinancialReports: React.FC = () => {
                           }}
                           className={`w-full text-left px-3 py-2 rounded-lg text-sm transition ${
                             selectedDoctor === 'all'
-                              ? 'bg-green-100 text-green-700 border border-green-200'
-                              : 'hover:bg-gray-100 text-gray-700'
+                              ? 'bg-blue-100 text-blue-700 border border-blue-200 font-medium'
+                              : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
                           }`}
                         >
                           Tous les médecins
@@ -561,31 +671,31 @@ const FinancialReports: React.FC = () => {
                             }}
                             className={`w-full text-left px-3 py-2 rounded-lg text-sm transition ${
                               selectedDoctor === doctor.doctorId
-                                ? 'bg-green-100 text-green-700 border border-green-200'
-                                : 'hover:bg-gray-100 text-gray-700'
+                                ? 'bg-blue-100 text-blue-700 border border-blue-200 font-medium'
+                                : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
                             }`}
                           >
                             {doctor.doctorName}
                           </button>
                         ))}
                       </div>
-                    </>
+                    </div>
                   )}
                 </div>
               </div>
             )}
           </div>
 
-          {/* Menu d'export - Plusieurs options */}
+          {/* Bouton Export */}
           <div className="relative">
             <button
               onClick={() => setShowExportMenu(!showExportMenu)}
               disabled={filteredPayments.length === 0 && doctorStats.length === 0}
-              className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all hover:shadow-lg flex items-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-5 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all hover:shadow-lg flex items-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Download className="w-4 h-4" />
-              <span>Export</span>
-              <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${showExportMenu ? 'rotate-180' : ''}`} />
+              <Download className="w-5 h-5" />
+              <span className="font-medium">Export</span>
+              <ChevronDown className={`w-5 h-5 transition-transform duration-300 ${showExportMenu ? 'rotate-180' : ''}`} />
             </button>
 
             {showExportMenu && (
@@ -661,18 +771,6 @@ const FinancialReports: React.FC = () => {
               </div>
             )}
           </div>
-
-          {/* Bouton recherche */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Rechercher..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent shadow-sm w-64"
-            />
-          </div>
         </div>
       </div>
 
@@ -720,6 +818,128 @@ const FinancialReports: React.FC = () => {
           </div>
           <p className="text-2xl font-bold text-gray-900">{summary.totalTransactions}</p>
           <p className="text-sm text-gray-500">Transactions</p>
+        </div>
+      </div>
+
+      {/* Statistiques détaillées des transactions */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Statistiques par statut */}
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <PieChart className="w-5 h-5 text-blue-600" />
+            Répartition par statut
+          </h3>
+          <div className="space-y-4">
+            <div>
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-gray-600 flex items-center gap-1">
+                  <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
+                  En attente
+                </span>
+                <span className="font-medium text-gray-900">{formatCurrency(transactionStats.byStatus.pending)}</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="bg-yellow-500 h-2 rounded-full" 
+                     style={{ width: `${transactionStats.totalAmount ? (transactionStats.byStatus.pending / transactionStats.totalAmount) * 100 : 0}%` }}></div>
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-gray-600 flex items-center gap-1">
+                  <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                  Complétés
+                </span>
+                <span className="font-medium text-gray-900">{formatCurrency(transactionStats.byStatus.completed)}</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="bg-green-500 h-2 rounded-full" 
+                     style={{ width: `${transactionStats.totalAmount ? (transactionStats.byStatus.completed / transactionStats.totalAmount) * 100 : 0}%` }}></div>
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-gray-600 flex items-center gap-1">
+                  <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                  Échoués
+                </span>
+                <span className="font-medium text-gray-900">{formatCurrency(transactionStats.byStatus.failed)}</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="bg-red-500 h-2 rounded-full" 
+                     style={{ width: `${transactionStats.totalAmount ? (transactionStats.byStatus.failed / transactionStats.totalAmount) * 100 : 0}%` }}></div>
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-gray-600 flex items-center gap-1">
+                  <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
+                  Remboursés
+                </span>
+                <span className="font-medium text-gray-900">{formatCurrency(transactionStats.byStatus.refunded)}</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="bg-purple-500 h-2 rounded-full" 
+                     style={{ width: `${transactionStats.totalAmount ? (transactionStats.byStatus.refunded / transactionStats.totalAmount) * 100 : 0}%` }}></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Méthodes de paiement */}
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <CreditCard className="w-5 h-5 text-green-600" />
+            Méthodes de paiement
+          </h3>
+          <div className="space-y-4">
+            {Object.entries(transactionStats.byPaymentMethod).map(([method, amount]) => (
+              <div key={method}>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-gray-600">{method}</span>
+                  <span className="font-medium text-gray-900">{formatCurrency(amount)}</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="bg-green-500 h-2 rounded-full" 
+                       style={{ width: `${transactionStats.totalAmount ? (amount / transactionStats.totalAmount) * 100 : 0}%` }}></div>
+                </div>
+              </div>
+            ))}
+            {Object.keys(transactionStats.byPaymentMethod).length === 0 && (
+              <p className="text-gray-500 text-center py-4">Aucune donnée disponible</p>
+            )}
+          </div>
+        </div>
+
+        {/* Top médecins */}
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <Award className="w-5 h-5 text-yellow-500" />
+            Top médecins
+          </h3>
+          <div className="space-y-4">
+            {transactionStats.topDoctors.map((doctor, index) => (
+              <div key={doctor.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                    index === 0 ? 'bg-yellow-500 text-white' :
+                    index === 1 ? 'bg-gray-400 text-white' :
+                    index === 2 ? 'bg-orange-500 text-white' :
+                    'bg-gray-200 text-gray-600'
+                  }`}>
+                    {index + 1}
+                  </span>
+                  <div>
+                    <p className="font-medium text-gray-900">{doctor.name}</p>
+                    <p className="text-xs text-gray-500">{doctor.count} transactions</p>
+                  </div>
+                </div>
+                <p className="font-bold text-green-600">{formatCurrency(doctor.amount)}</p>
+              </div>
+            ))}
+            {transactionStats.topDoctors.length === 0 && (
+              <p className="text-gray-500 text-center py-4">Aucune donnée disponible</p>
+            )}
+          </div>
         </div>
       </div>
 
@@ -790,7 +1010,7 @@ const FinancialReports: React.FC = () => {
         )}
       </div>
 
-      {/* Liste des transactions */}
+      {/* Liste des transactions récentes */}
       <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <CreditCard className="w-5 h-5 text-green-600" />
