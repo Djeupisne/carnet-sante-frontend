@@ -567,8 +567,22 @@ const DoctorDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* GESTION DU CALENDRIER */}
-      <CalendarManagement />
+      {/* GESTION DU CALENDRIER - Uniquement le bouton de création */}
+<div className="futuristic-card p-6">
+  <div className="flex items-center justify-between">
+    <div>
+      <h3 className="text-xl font-bold text-white mb-2">Gestion des disponibilités</h3>
+      <p className="text-gray-400 text-sm">Créez et gérez vos calendriers de disponibilités</p>
+    </div>
+    <Link
+      to="/doctor/calendar"
+      className="futuristic-btn flex items-center gap-2"
+    >
+      <Plus className="w-5 h-5" />
+      Créer un nouveau calendrier
+    </Link>
+  </div>
+</div>
     </div>
   );
 };
