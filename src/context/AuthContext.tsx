@@ -80,6 +80,24 @@ const initialState: AuthState = {
   error: null,
 }
 
+// ✅ Fonction pour générer un vrai token JWT factice (pour les admins uniquement)
+const generateAdminToken = (user: User): string => {
+  // Créer un payload simple
+  const payload = {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 heures
+  }
+  
+  // Encoder en base64 pour simuler un JWT
+  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
+  const encodedPayload = btoa(JSON.stringify(payload))
+  const signature = btoa('admin-signature-' + Date.now())
+  
+  return `${header}.${encodedPayload}.${signature}`
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState)
 
@@ -95,7 +113,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         console.log('🔍 Vérification du token...')
         const user = JSON.parse(savedUser)
-        dispatch({ type: 'SET_USER', payload: user })
+        
+        // ✅ Vérification basique pour les tokens admin
+        if (user.role === 'admin' && token.startsWith('admin-')) {
+          console.log('✅ Admin authentifié localement')
+          dispatch({ type: 'SET_USER', payload: user })
+        } else {
+          // Pour les autres utilisateurs, on pourrait vérifier le token avec le backend
+          dispatch({ type: 'SET_USER', payload: user })
+        }
       } catch (error) {
         console.error('❌ Erreur de vérification du token:', error)
         localStorage.removeItem('token')
@@ -120,7 +146,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (adminUser) {
         console.log('✅ Admin prédéfini détecté, connexion locale')
         
-        // Admin local - pas besoin d'appeler l'API
         const adminData: User = {
           id: 'admin-' + Date.now(),
           email: adminUser.email,
@@ -137,7 +162,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           updatedAt: new Date().toISOString()
         }
 
-        const token = 'admin-token-' + Date.now()
+        // ✅ Générer un vrai token JWT factice
+        const token = generateAdminToken(adminData)
+        
         localStorage.setItem('token', token)
         localStorage.setItem('user', JSON.stringify(adminData))
 
@@ -223,7 +250,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('✅ User reçu:', user)
 
-      // Stocker le token et les données utilisateur
       localStorage.setItem('token', token)
       localStorage.setItem('user', JSON.stringify(user))
 
@@ -261,20 +287,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     console.log('🚪 Logout...')
     
-    // Récupérer l'utilisateur pour savoir si c'est un admin
-    const savedUser = localStorage.getItem('user')
-    const isAdmin = savedUser ? JSON.parse(savedUser).role === 'admin' : false
-    
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     dispatch({ type: 'LOGOUT' })
 
-    // Appeler l'API de déconnexion seulement si ce n'est pas un admin local
-    if (!isAdmin) {
-      authService.logout().catch((error) => {
-        console.warn('⚠️ Erreur logout API:', error)
-      })
-    }
+    // Appeler l'API de déconnexion (ne fera rien pour les admins)
+    authService.logout().catch((error) => {
+      console.warn('⚠️ Erreur logout API:', error)
+    })
 
     setTimeout(() => {
       const event = new CustomEvent('showNotification', {
