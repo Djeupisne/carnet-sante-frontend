@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { userService } from '../../services/userService';
 import { appointmentService } from '../../services/appointmentService';
-import { Calendar, Users, Clock, DollarSign, X, Check, Bell, ChevronRight, LogOut } from 'lucide-react';
+import { Calendar, Users, Clock, DollarSign, X, Check, Bell, ChevronRight, LogOut, Plus } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import CalendarManagement from './CalendarManagement';
 
