@@ -21,10 +21,10 @@ import {
   MessageSquare,
   Filter,
   Download,
-  MoreVertical,
   Eye,
   X,
-  AlertCircle
+  AlertCircle,
+  Info
 } from 'lucide-react';
 
 interface Patient {
@@ -45,6 +45,7 @@ interface Patient {
   };
   lastAppointment?: string;
   totalAppointments?: number;
+  hasDetails?: boolean; // Nouveau champ pour savoir si on a les détails
 }
 
 interface Appointment {
@@ -149,7 +150,8 @@ const DoctorPatientsPage: React.FC = () => {
           email: lastAppointment?.patient?.email || 'Non renseigné',
           phoneNumber: lastAppointment?.patient?.phoneNumber,
           lastAppointment: sortedAppointments[0]?.appointmentDate,
-          totalAppointments: patientAppointments.length
+          totalAppointments: patientAppointments.length,
+          hasDetails: false // Par défaut, pas de détails
         };
       });
 
@@ -181,45 +183,46 @@ const DoctorPatientsPage: React.FC = () => {
           const patientData = await userService.getUserById(patientId);
           
           // Récupérer le patient de base
-          const basePatient = basePatients.find(p => p.id === patientId) || {
-            id: patientId,
-            firstName: 'Patient',
-            lastName: '',
-            email: 'Non renseigné'
-          };
+          const basePatient = basePatients.find(p => p.id === patientId);
+          
+          if (basePatient) {
+            // Fusionner les données
+            enrichedPatients.push({
+              ...basePatient,
+              firstName: patientData?.firstName || basePatient.firstName,
+              lastName: patientData?.lastName || basePatient.lastName,
+              email: patientData?.email || basePatient.email,
+              phoneNumber: patientData?.phoneNumber || basePatient.phoneNumber,
+              dateOfBirth: patientData?.dateOfBirth,
+              gender: patientData?.gender,
+              address: patientData?.address,
+              bloodType: patientData?.bloodType,
+              allergies: patientData?.allergies || [],
+              emergencyContact: patientData?.emergencyContact,
+              hasDetails: true // ✅ On a réussi à avoir les détails
+            });
+          }
 
-          // Fusionner les données
-          enrichedPatients.push({
-            ...basePatient,
-            firstName: patientData?.firstName || basePatient.firstName,
-            lastName: patientData?.lastName || basePatient.lastName,
-            email: patientData?.email || basePatient.email,
-            phoneNumber: patientData?.phoneNumber || basePatient.phoneNumber,
-            dateOfBirth: patientData?.dateOfBirth,
-            gender: patientData?.gender,
-            address: patientData?.address,
-            bloodType: patientData?.bloodType,
-            allergies: patientData?.allergies || [],
-            emergencyContact: patientData?.emergencyContact
-          });
-
-        } catch (error) {
-          console.warn(`⚠️ Impossible de récupérer les détails du patient ${patientId}, conservation des données de base`);
+        } catch (error: any) {
+          console.warn(`⚠️ Impossible de récupérer les détails du patient ${patientId}:`, error.message);
+          
           // Garder les données de base
           const basePatient = basePatients.find(p => p.id === patientId);
           if (basePatient) {
-            enrichedPatients.push(basePatient);
+            enrichedPatients.push({
+              ...basePatient,
+              hasDetails: false // Pas de détails
+            });
           }
         }
       }
 
-      console.log(`✅ ${enrichedPatients.length} patients enrichis avec détails`);
+      console.log(`✅ ${enrichedPatients.length} patients traités (${enrichedPatients.filter(p => p.hasDetails).length} avec détails)`);
       setPatients(enrichedPatients);
       setFilteredPatients(enrichedPatients);
 
     } catch (error) {
       console.error('❌ Erreur lors de l\'enrichissement des patients:', error);
-      // Garder les données de base en cas d'erreur
     }
   };
 
@@ -396,6 +399,11 @@ const DoctorPatientsPage: React.FC = () => {
                 <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                   <User className="w-6 h-6 text-purple-400" />
                   Détails du patient
+                  {!selectedPatient.hasDetails && (
+                    <span className="ml-2 px-2 py-1 bg-yellow-500/20 text-yellow-300 rounded-lg text-xs">
+                      Informations limitées
+                    </span>
+                  )}
                 </h2>
                 <button
                   onClick={() => setShowPatientDetails(false)}
@@ -404,6 +412,15 @@ const DoctorPatientsPage: React.FC = () => {
                   <X className="w-5 h-5" />
                 </button>
               </div>
+
+              {!selectedPatient.hasDetails && (
+                <div className="mb-4 p-3 bg-blue-500/20 border border-blue-500/30 rounded-lg flex items-center gap-2">
+                  <Info className="w-4 h-4 text-blue-400" />
+                  <span className="text-sm text-blue-300">
+                    Certaines informations ne sont pas disponibles. Seules les données des rendez-vous sont affichées.
+                  </span>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Informations personnelles */}
@@ -433,16 +450,18 @@ const DoctorPatientsPage: React.FC = () => {
                         <p className="text-white">{selectedPatient.phoneNumber || 'Non renseigné'}</p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <p className="text-sm text-gray-400">Date de naissance</p>
-                        <p className="text-white">{formatDate(selectedPatient.dateOfBirth)}</p>
+                    {selectedPatient.hasDetails && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-sm text-gray-400">Date de naissance</p>
+                          <p className="text-white">{formatDate(selectedPatient.dateOfBirth)}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-400">Sexe</p>
+                          <p className="text-white">{selectedPatient.gender || 'Non renseigné'}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm text-gray-400">Sexe</p>
-                        <p className="text-white">{selectedPatient.gender || 'Non renseigné'}</p>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </div>
 
@@ -454,31 +473,33 @@ const DoctorPatientsPage: React.FC = () => {
                       <p className="text-sm text-gray-400 mb-1">Groupe sanguin</p>
                       <p className="text-white font-medium">{selectedPatient.bloodType || 'Non renseigné'}</p>
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-400 mb-1">Allergies</p>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedPatient.allergies && selectedPatient.allergies.length > 0 ? (
-                          selectedPatient.allergies.map((allergy, index) => (
-                            <span key={index} className="px-3 py-1 bg-red-500/20 text-red-300 rounded-lg text-sm">
-                              {allergy}
-                            </span>
-                          ))
-                        ) : (
-                          <p className="text-gray-500">Aucune allergie connue</p>
-                        )}
+                    {selectedPatient.hasDetails && (
+                      <div>
+                        <p className="text-sm text-gray-400 mb-1">Allergies</p>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedPatient.allergies && selectedPatient.allergies.length > 0 ? (
+                            selectedPatient.allergies.map((allergy, index) => (
+                              <span key={index} className="px-3 py-1 bg-red-500/20 text-red-300 rounded-lg text-sm">
+                                {allergy}
+                              </span>
+                            ))
+                          ) : (
+                            <p className="text-gray-500">Aucune allergie connue</p>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
-                  <h3 className="text-lg font-semibold text-yellow-400 mb-3">Contact d'urgence</h3>
-                  {selectedPatient.emergencyContact ? (
-                    <div className="bg-white/5 rounded-xl p-4 space-y-2">
-                      <p className="text-white">{selectedPatient.emergencyContact.name}</p>
-                      <p className="text-gray-300">{selectedPatient.emergencyContact.phone}</p>
-                      <p className="text-sm text-gray-400">{selectedPatient.emergencyContact.relationship}</p>
-                    </div>
-                  ) : (
-                    <p className="text-gray-500">Non renseigné</p>
+                  {selectedPatient.hasDetails && selectedPatient.emergencyContact && (
+                    <>
+                      <h3 className="text-lg font-semibold text-yellow-400 mb-3">Contact d'urgence</h3>
+                      <div className="bg-white/5 rounded-xl p-4 space-y-2">
+                        <p className="text-white">{selectedPatient.emergencyContact.name}</p>
+                        <p className="text-gray-300">{selectedPatient.emergencyContact.phone}</p>
+                        <p className="text-sm text-gray-400">{selectedPatient.emergencyContact.relationship}</p>
+                      </div>
+                    </>
                   )}
                 </div>
               </div>
@@ -486,7 +507,7 @@ const DoctorPatientsPage: React.FC = () => {
               {/* Historique des rendez-vous */}
               <div className="mt-6">
                 <h3 className="text-lg font-semibold text-purple-400 mb-3">Historique des rendez-vous</h3>
-                <div className="space-y-3">
+                <div className="space-y-3 max-h-60 overflow-y-auto">
                   {patientAppointments.length > 0 ? (
                     patientAppointments.map((apt) => {
                       const { date, time } = formatDateTime(apt.appointmentDate);
@@ -641,9 +662,16 @@ const DoctorPatientsPage: React.FC = () => {
                         </span>
                       </div>
                       <div>
-                        <h3 className="font-bold text-white text-lg">
-                          {patient.firstName} {patient.lastName}
-                        </h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-white text-lg">
+                            {patient.firstName} {patient.lastName}
+                          </h3>
+                          {!patient.hasDetails && (
+                            <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-300 rounded-lg text-xs">
+                              Infos limitées
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-4 mt-2">
                           <div className="flex items-center gap-1 text-sm text-gray-400">
                             <Mail className="w-4 h-4" />
@@ -676,7 +704,7 @@ const DoctorPatientsPage: React.FC = () => {
                       </div>
                     </div>
 
-                    {patient.allergies && patient.allergies.length > 0 && (
+                    {patient.hasDetails && patient.allergies && patient.allergies.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-2">
                         {patient.allergies.map((allergy, index) => (
                           <span key={index} className="px-3 py-1 bg-red-500/20 text-red-300 rounded-lg text-xs">
