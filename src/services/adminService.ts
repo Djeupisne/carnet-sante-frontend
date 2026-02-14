@@ -12,7 +12,7 @@ export interface User {
   isVerified: boolean;
   createdAt?: string;
   updatedAt?: string;
-  // Champs supplémentaires utiles pour l'affichage
+  // Champs supplémentaires pour l'affichage détaillé
   dateOfBirth?: string;
   gender?: string;
   bloodType?: string;
@@ -20,6 +20,13 @@ export interface User {
   biography?: string;
   languages?: string[];
   consultationPrice?: number;
+  address?: string;
+  city?: string;
+  emergencyContact?: {
+    name: string;
+    phone: string;
+    relationship: string;
+  };
 }
 
 export interface Appointment {
@@ -27,10 +34,36 @@ export interface Appointment {
   patientId: string;
   doctorId: string;
   appointmentDate: string;
-  status: string;
-  type: string;
-  patient?: { firstName: string; lastName: string; id?: string };
-  doctor?: { firstName: string; lastName: string; id?: string; specialty?: string };
+  duration: number;
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
+  type: 'in_person' | 'teleconsultation' | 'home_visit';
+  reason: string;
+  symptoms?: any;
+  notes?: string;
+  meetingLink?: string;
+  createdAt: string;
+  updatedAt: string;
+  patient?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phoneNumber?: string;
+  };
+  doctor?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    specialty?: string;
+  };
+  payment?: {
+    id: string;
+    amount: number;
+    status: string;
+    paymentMethod?: string;
+    transactionId?: string;
+  };
 }
 
 export interface DashboardStats {
@@ -41,7 +74,14 @@ export interface DashboardStats {
     admins: number;
     active: number;
     inactive: number;
-    recent?: Array<{ id: string; firstName: string; lastName: string; email: string; role: string; createdAt: string }>;
+    recent?: Array<{ 
+      id: string; 
+      firstName: string; 
+      lastName: string; 
+      email: string; 
+      role: string; 
+      createdAt: string 
+    }>;
   };
   appointments: {
     total: number;
@@ -68,9 +108,75 @@ export interface DashboardStats {
   }>;
 }
 
+export interface FinancialSummary {
+  totalRevenue: number;
+  totalCommission: number;
+  netRevenue: number;
+  totalTransactions: number;
+  averageTransaction: number;
+  pendingPayments: number;
+  completedPayments: number;
+}
+
+export interface DoctorFinancialStat {
+  doctorId: string;
+  doctorName: string;
+  specialty: string;
+  totalRevenue: number;
+  commission: number;
+  netRevenue: number;
+  totalAppointments: number;
+  completedAppointments: number;
+  averagePerAppointment: number;
+}
+
+export interface Transaction {
+  id: string;
+  amount: number;
+  currency: string;
+  status: 'pending' | 'completed' | 'failed' | 'refunded';
+  paymentMethod: string;
+  transactionId: string;
+  createdAt: string;
+  appointment?: {
+    id: string;
+    appointmentDate: string;
+    doctor?: {
+      id: string;
+      firstName: string;
+      lastName: string;
+    };
+    patient?: {
+      id: string;
+      firstName: string;
+      lastName: string;
+    };
+  };
+}
+
+export interface AuditLog {
+  id: string;
+  action: string;
+  userId: string;
+  userRole?: string;
+  ipAddress: string;
+  userAgent: string;
+  details: any;
+  status: 'success' | 'failure';
+  errorMessage?: string;
+  createdAt: string;
+  user?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: string;
+  };
+}
+
 export const adminService = {
   /**
-   * Connexion admin (si vous avez une route dédiée)
+   * Connexion admin (route dédiée)
    */
   async login(email: string, password: string): Promise<{ success: boolean; token?: string; user?: User; message?: string }> {
     try {
@@ -87,12 +193,10 @@ export const adminService = {
 
   /**
    * ✅ Récupérer les statistiques du dashboard admin
-   * CORRECTION: Utilisation de '/admin/dashboard' au lieu de '/admin/dashboard/stats'
    */
   async getDashboardStats(): Promise<{ success: boolean; data: DashboardStats }> {
     try {
       console.log('📊 Récupération des statistiques dashboard admin...');
-      // ✅ URL corrigée
       const response = await api.get('/admin/dashboard');
       console.log('✅ Statistiques récupérées:', response.data);
       return response.data;
@@ -111,6 +215,8 @@ export const adminService = {
     search?: string;
     page?: number;
     limit?: number;
+    sortBy?: string;
+    sortOrder?: 'ASC' | 'DESC';
   }): Promise<{ success: boolean; data: User[]; pagination?: any }> {
     try {
       console.log('👥 Récupération des utilisateurs avec filtres:', params);
@@ -267,6 +373,20 @@ export const adminService = {
   },
 
   /**
+   * ✅ Mettre à jour le statut d'un rendez-vous
+   */
+  async updateAppointmentStatus(appointmentId: string, status: string): Promise<{ success: boolean; data: Appointment; message?: string }> {
+    try {
+      console.log(`🔄 Mise à jour du statut du rendez-vous ${appointmentId} vers ${status}...`);
+      const response = await api.patch(`/admin/appointments/${appointmentId}/status`, { status });
+      return response.data;
+    } catch (error: any) {
+      console.error(`❌ Erreur mise à jour statut rendez-vous ${appointmentId}:`, error);
+      throw error;
+    }
+  },
+
+  /**
    * ✅ Récupérer les rapports financiers
    */
   async getFinancialReports(params?: {
@@ -287,7 +407,7 @@ export const adminService = {
   /**
    * ✅ Récupérer les statistiques financières par médecin
    */
-  async getDoctorFinancialStats(): Promise<{ success: boolean; data: any }> {
+  async getDoctorFinancialStats(): Promise<{ success: boolean; data: DoctorFinancialStat[] }> {
     try {
       console.log('📊 Récupération des statistiques financières par médecin...');
       const response = await api.get('/admin/financial/doctor-stats');
@@ -308,7 +428,7 @@ export const adminService = {
     endDate?: string;
     page?: number;
     limit?: number;
-  }): Promise<{ success: boolean; data: any[]; pagination?: any }> {
+  }): Promise<{ success: boolean; data: AuditLog[]; pagination?: any }> {
     try {
       console.log('📋 Récupération des logs d\'audit...');
       const response = await api.get('/admin/audit-logs', { params });
@@ -322,13 +442,44 @@ export const adminService = {
   /**
    * ✅ Récupérer les logs d'audit pour un utilisateur spécifique
    */
-  async getUserAuditLogs(userId: string, params?: { page?: number; limit?: number }): Promise<{ success: boolean; data: any[]; pagination?: any }> {
+  async getUserAuditLogs(userId: string, params?: { page?: number; limit?: number }): Promise<{ success: boolean; data: AuditLog[]; pagination?: any }> {
     try {
       console.log(`📋 Récupération des logs d'audit pour l'utilisateur ${userId}...`);
       const response = await api.get(`/admin/audit-logs/user/${userId}`, { params });
       return response.data;
     } catch (error: any) {
       console.error(`❌ Erreur récupération logs d'audit pour l'utilisateur ${userId}:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * ✅ Récupérer les statistiques des calendriers
+   */
+  async getCalendarStats(): Promise<{ success: boolean; data: any }> {
+    try {
+      console.log('📅 Récupération des statistiques des calendriers...');
+      const response = await api.get('/admin/calendars/stats');
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Erreur récupération stats calendriers:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * ✅ Exporter les données au format CSV
+   */
+  async exportData(type: 'users' | 'appointments' | 'financial', params?: any): Promise<Blob> {
+    try {
+      console.log(`📥 Export des données ${type}...`);
+      const response = await api.get(`/admin/export/${type}`, { 
+        params, 
+        responseType: 'blob' 
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error(`❌ Erreur export ${type}:`, error);
       throw error;
     }
   }
