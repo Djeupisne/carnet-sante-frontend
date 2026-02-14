@@ -23,7 +23,8 @@ import {
   Download,
   MoreVertical,
   Eye,
-  X
+  X,
+  AlertCircle
 } from 'lucide-react';
 
 interface Patient {
@@ -48,10 +49,21 @@ interface Patient {
 
 interface Appointment {
   id: string;
+  patientId: string;
+  doctorId: string;
   appointmentDate: string;
-  status: string;
-  type: string;
+  duration: number;
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
+  type: 'in_person' | 'teleconsultation' | 'home_visit';
   reason: string;
+  notes?: string;
+  patient?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phoneNumber?: string;
+  };
 }
 
 interface DoctorUser {
@@ -77,6 +89,7 @@ const DoctorPatientsPage: React.FC = () => {
   const [patientAppointments, setPatientAppointments] = useState<Appointment[]>([]);
   const [showPatientDetails, setShowPatientDetails] = useState(false);
   const [filterStatus, setFilterStatus] = useState<'all' | 'recent' | 'oldest'>('all');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPatients();
@@ -89,132 +102,124 @@ const DoctorPatientsPage: React.FC = () => {
   const fetchPatients = async () => {
     try {
       setLoading(true);
+      setError(null);
       console.log('👥 Récupération des patients...');
       
-      // Récupérer tous les rendez-vous pour identifier les patients uniques
+      // ✅ Étape 1: Récupérer tous les rendez-vous du médecin
       const appointments = await appointmentService.getAppointments();
       
       if (!appointments || !Array.isArray(appointments)) {
+        console.warn('⚠️ Aucun rendez-vous trouvé');
         setPatients([]);
+        setFilteredPatients([]);
         return;
       }
 
-      // Filtrer les rendez-vous du médecin connecté
+      // ✅ Étape 2: Filtrer les rendez-vous du médecin connecté
       const doctorAppointments = appointments.filter(
         apt => apt.doctorId === doctorUser?.id
       );
 
-      // Extraire les IDs uniques des patients
+      console.log(`📊 ${doctorAppointments.length} rendez-vous trouvés pour le médecin`);
+
+      // ✅ Étape 3: Extraire les IDs uniques des patients
       const uniquePatientIds = [...new Set(doctorAppointments.map(apt => apt.patientId))];
       
-      // Récupérer les détails de chaque patient
-      const patientPromises = uniquePatientIds.map(async (patientId) => {
+      console.log(`📋 ${uniquePatientIds.length} patients uniques identifiés`);
+
+      // ✅ Étape 4: Construire les données patients à partir des rendez-vous
+      const patientsData: Patient[] = uniquePatientIds.map(patientId => {
+        // Récupérer tous les rendez-vous de ce patient avec ce médecin
+        const patientAppointments = doctorAppointments.filter(
+          apt => apt.patientId === patientId
+        );
+
+        // Trier par date (plus récent d'abord)
+        const sortedAppointments = patientAppointments.sort(
+          (a, b) => new Date(b.appointmentDate).getTime() - new Date(a.appointmentDate).getTime()
+        );
+
+        // Prendre le dernier rendez-vous pour les infos patient de base
+        const lastAppointment = sortedAppointments[0];
+
+        return {
+          id: patientId,
+          firstName: lastAppointment?.patient?.firstName || 'Patient',
+          lastName: lastAppointment?.patient?.lastName || '',
+          email: lastAppointment?.patient?.email || 'Non renseigné',
+          phoneNumber: lastAppointment?.patient?.phoneNumber,
+          lastAppointment: sortedAppointments[0]?.appointmentDate,
+          totalAppointments: patientAppointments.length
+        };
+      });
+
+      console.log(`✅ ${patientsData.length} patients trouvés (données de base)`);
+      setPatients(patientsData);
+      setFilteredPatients(patientsData);
+
+      // ✅ Étape 5: Essayer de récupérer les détails complets en arrière-plan
+      fetchPatientDetails(uniquePatientIds, patientsData);
+
+    } catch (error) {
+      console.error('❌ Erreur lors de la récupération des patients:', error);
+      setError('Erreur lors du chargement des patients');
+      showNotification('Erreur lors du chargement des patients', 'error');
+      setPatients([]);
+      setFilteredPatients([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchPatientDetails = async (patientIds: string[], basePatients: Patient[]) => {
+    try {
+      const enrichedPatients: Patient[] = [];
+
+      for (const patientId of patientIds) {
         try {
-          // Récupérer les informations du patient
+          // Récupérer les informations détaillées du patient
           const patientData = await userService.getUserById(patientId);
           
-          // Récupérer les rendez-vous de ce patient avec ce médecin
-          const patientAppointments = doctorAppointments.filter(
-            apt => apt.patientId === patientId
-          );
-
-          // Trier par date (plus récent d'abord)
-          const sortedAppointments = patientAppointments.sort(
-            (a, b) => new Date(b.appointmentDate).getTime() - new Date(a.appointmentDate).getTime()
-          );
-
-          return {
+          // Récupérer le patient de base
+          const basePatient = basePatients.find(p => p.id === patientId) || {
             id: patientId,
-            firstName: patientData?.firstName || 'Inconnu',
-            lastName: patientData?.lastName || '',
-            email: patientData?.email || 'Non renseigné',
-            phoneNumber: patientData?.phoneNumber,
+            firstName: 'Patient',
+            lastName: '',
+            email: 'Non renseigné'
+          };
+
+          // Fusionner les données
+          enrichedPatients.push({
+            ...basePatient,
+            firstName: patientData?.firstName || basePatient.firstName,
+            lastName: patientData?.lastName || basePatient.lastName,
+            email: patientData?.email || basePatient.email,
+            phoneNumber: patientData?.phoneNumber || basePatient.phoneNumber,
             dateOfBirth: patientData?.dateOfBirth,
             gender: patientData?.gender,
             address: patientData?.address,
             bloodType: patientData?.bloodType,
             allergies: patientData?.allergies || [],
-            emergencyContact: patientData?.emergencyContact,
-            lastAppointment: sortedAppointments[0]?.appointmentDate,
-            totalAppointments: patientAppointments.length
-          };
-        } catch (error) {
-          console.error(`❌ Erreur récupération patient ${patientId}:`, error);
-          return null;
-        }
-      });
+            emergencyContact: patientData?.emergencyContact
+          });
 
-      const patientsData = (await Promise.all(patientPromises)).filter(p => p !== null) as Patient[];
-      
-      console.log(`✅ ${patientsData.length} patients trouvés`);
-      setPatients(patientsData);
-      setFilteredPatients(patientsData);
-    } catch (error) {
-      console.error('❌ Erreur lors de la récupération des patients:', error);
-      showNotification('Erreur lors du chargement des patients', 'error');
-      
-      // Données de secours
-      const mockPatients: Patient[] = [
-        {
-          id: '1',
-          firstName: 'Jean',
-          lastName: 'Dupont',
-          email: 'jean.dupont@email.com',
-          phoneNumber: '06 12 34 56 78',
-          dateOfBirth: '1980-05-15',
-          gender: 'M',
-          bloodType: 'A+',
-          allergies: ['Pénicilline', 'Pollens'],
-          emergencyContact: {
-            name: 'Marie Dupont',
-            phone: '06 98 76 54 32',
-            relationship: 'Conjointe'
-          },
-          lastAppointment: '2024-02-10T14:30:00',
-          totalAppointments: 5
-        },
-        {
-          id: '2',
-          firstName: 'Sophie',
-          lastName: 'Martin',
-          email: 'sophie.martin@email.com',
-          phoneNumber: '06 23 45 67 89',
-          dateOfBirth: '1992-08-22',
-          gender: 'F',
-          bloodType: 'O-',
-          allergies: [],
-          emergencyContact: {
-            name: 'Pierre Martin',
-            phone: '06 87 65 43 21',
-            relationship: 'Frère'
-          },
-          lastAppointment: '2024-02-05T10:00:00',
-          totalAppointments: 3
-        },
-        {
-          id: '3',
-          firstName: 'Michel',
-          lastName: 'Bernard',
-          email: 'michel.bernard@email.com',
-          phoneNumber: '06 34 56 78 90',
-          dateOfBirth: '1975-11-30',
-          gender: 'M',
-          bloodType: 'B+',
-          allergies: ['Latex', 'Iode'],
-          emergencyContact: {
-            name: 'Claire Bernard',
-            phone: '06 76 54 32 10',
-            relationship: 'Épouse'
-          },
-          lastAppointment: '2024-01-28T09:15:00',
-          totalAppointments: 8
+        } catch (error) {
+          console.warn(`⚠️ Impossible de récupérer les détails du patient ${patientId}, conservation des données de base`);
+          // Garder les données de base
+          const basePatient = basePatients.find(p => p.id === patientId);
+          if (basePatient) {
+            enrichedPatients.push(basePatient);
+          }
         }
-      ];
-      
-      setPatients(mockPatients);
-      setFilteredPatients(mockPatients);
-    } finally {
-      setLoading(false);
+      }
+
+      console.log(`✅ ${enrichedPatients.length} patients enrichis avec détails`);
+      setPatients(enrichedPatients);
+      setFilteredPatients(enrichedPatients);
+
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'enrichissement des patients:', error);
+      // Garder les données de base en cas d'erreur
     }
   };
 
@@ -244,11 +249,11 @@ const DoctorPatientsPage: React.FC = () => {
           p.firstName.toLowerCase().includes(term) ||
           p.lastName.toLowerCase().includes(term) ||
           p.email.toLowerCase().includes(term) ||
-          p.phoneNumber?.toLowerCase().includes(term)
+          (p.phoneNumber && p.phoneNumber.toLowerCase().includes(term))
       );
     }
 
-    // Filtre par statut
+    // Filtre par statut (récents / anciens)
     if (filterStatus === 'recent') {
       filtered = filtered.filter(p => {
         if (!p.lastAppointment) return false;
@@ -278,29 +283,38 @@ const DoctorPatientsPage: React.FC = () => {
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+    try {
+      return new Date(dateString).toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    } catch {
+      return 'N/A';
+    }
   };
 
   const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return {
-      date: date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }),
-      time: date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-    };
+    try {
+      const date = new Date(dateString);
+      return {
+        date: date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+        time: date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+      };
+    } catch {
+      return { date: 'N/A', time: 'N/A' };
+    }
   };
 
   const getStatusBadge = (status: string) => {
-    const statusConfig = {
+    const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
       pending: { bg: 'bg-yellow-500/20', text: 'text-yellow-300', label: 'En attente' },
       confirmed: { bg: 'bg-green-500/20', text: 'text-green-300', label: 'Confirmé' },
       completed: { bg: 'bg-blue-500/20', text: 'text-blue-300', label: 'Terminé' },
-      cancelled: { bg: 'bg-red-500/20', text: 'text-red-300', label: 'Annulé' }
+      cancelled: { bg: 'bg-red-500/20', text: 'text-red-300', label: 'Annulé' },
+      no_show: { bg: 'bg-gray-500/20', text: 'text-gray-300', label: 'Non honoré' }
     };
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+    const config = statusConfig[status] || statusConfig.pending;
     return (
       <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${config.bg} ${config.text}`}>
         {config.label}
@@ -362,6 +376,16 @@ const DoctorPatientsPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* MESSAGE D'ERREUR */}
+      {error && (
+        <div className="futuristic-card p-4 border-red-500/50 bg-red-500/10 animate-slide-in">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-400" />
+            <span className="text-red-300">{error}</span>
+          </div>
+        </div>
+      )}
 
       {/* MODAL DÉTAILS PATIENT */}
       {showPatientDetails && selectedPatient && (
@@ -475,7 +499,11 @@ const DoctorPatientsPage: React.FC = () => {
                             </div>
                             <div className="flex items-center gap-3">
                               {getStatusBadge(apt.status)}
-                              <span className="text-sm text-gray-400">{apt.type}</span>
+                              <span className="text-sm text-gray-400">
+                                {apt.type === 'in_person' ? 'En personne' :
+                                 apt.type === 'teleconsultation' ? 'Téléconsultation' :
+                                 apt.type === 'home_visit' ? 'Visite à domicile' : apt.type}
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -608,7 +636,8 @@ const DoctorPatientsPage: React.FC = () => {
                     <div className="flex items-center gap-4">
                       <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
                         <span className="text-white font-bold text-lg">
-                          {patient.firstName[0]}{patient.lastName[0]}
+                          {patient.firstName ? patient.firstName[0] : '?'}
+                          {patient.lastName ? patient.lastName[0] : ''}
                         </span>
                       </div>
                       <div>
