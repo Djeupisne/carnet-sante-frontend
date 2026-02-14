@@ -7,6 +7,7 @@ import { NotificationProvider } from './context/NotificationContext'
 import DoctorCalendarPage from './pages/DoctorCalendarPage';
 import DoctorPatientsPage from './pages/DoctorPatientsPage';
 import DoctorAppointmentsPage from './pages/DoctorAppointmentsPage';
+import AdminDashboard from './pages/AdminDashboard';
 // Pages
 import HomePage from './pages/HomePage'
 import Login from './components/Auth/Login'
@@ -122,7 +123,14 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
-              
+              <Route 
+  path="/admin" 
+  element={
+    <ProtectedRoute>
+      <AdminDashboard />
+    </ProtectedRoute>
+  } 
+/>
               {/* Routes médecin */}
               <Route 
                 path="/doctor/appointments" 
