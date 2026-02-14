@@ -32,14 +32,14 @@ import {
   Award,
   AlertCircle
 } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import { useNotification } from '../../context/NotificationContext';
+import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 import { useNavigate } from 'react-router-dom';
-import { adminService, DashboardStats } from '../../services/adminService';
-import { calendarService } from '../../services/calendarService';
-import UserManagement from '../../components/Admin/UserManagement';
-import AppointmentManagement from '../../components/Admin/AppointmentManagement';
-import FinancialReports from '../../components/Admin/FinancialReports';
+import { adminService, DashboardStats } from '../services/adminService';
+import { calendarService } from '../services/calendarService';
+import UserManagement from '../components/Admin/UserManagement';
+import AppointmentManagement from '../components/Admin/AppointmentManagement';
+import FinancialReports from '../components/Admin/FinancialReports';
 
 interface Calendar {
   id: string;
