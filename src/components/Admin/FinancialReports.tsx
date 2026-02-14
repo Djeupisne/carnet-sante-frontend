@@ -84,10 +84,11 @@ interface TransactionStats {
   byPaymentMethod: {
     [key: string]: number;
   };
-  topDoctors: Array<{
+  topDoctorsByAppointments: Array<{
     name: string;
-    amount: number;
-    count: number;
+    specialty: string;
+    appointmentCount: number;
+    revenue: number;
   }>;
 }
 
@@ -116,7 +117,7 @@ const FinancialReports: React.FC = () => {
       refunded: 0
     },
     byPaymentMethod: {},
-    topDoctors: []
+    topDoctorsByAppointments: []
   });
   const [summary, setSummary] = useState({
     totalRevenue: 0,
@@ -276,30 +277,50 @@ const FinancialReports: React.FC = () => {
       refunded: filteredPayments.filter(p => p.status === 'refunded').reduce((sum, p) => sum + p.amount, 0)
     };
 
+    // ✅ MODE DE PAIEMENT - Uniquement les paiements complétés des patients
     const byPaymentMethod: { [key: string]: number } = {};
-    filteredPayments.forEach(p => {
-      const method = p.paymentMethod;
-      byPaymentMethod[method] = (byPaymentMethod[method] || 0) + p.amount;
-    });
+    filteredPayments
+      .filter(p => p.status === 'completed') // Ne garder que les paiements complétés
+      .forEach(p => {
+        const method = p.paymentMethod || 'Carte bancaire';
+        byPaymentMethod[method] = (byPaymentMethod[method] || 0) + p.amount;
+      });
 
-    // Top médecins par montant
-    const doctorMap = new Map<string, { name: string; amount: number; count: number }>();
-    filteredPayments.forEach(p => {
-      if (p.appointment?.doctor) {
-        const doctorId = p.appointment.doctor.id;
-        const doctorName = `Dr. ${p.appointment.doctor.firstName} ${p.appointment.doctor.lastName}`;
-        const current = doctorMap.get(doctorId) || { name: doctorName, amount: 0, count: 0 };
-        doctorMap.set(doctorId, {
-          name: doctorName,
-          amount: current.amount + p.amount,
-          count: current.count + 1
-        });
-      }
-    });
+    // ✅ TOP MÉDECINS - Classés par nombre de rendez-vous confirmés
+    const doctorMap = new Map<string, { 
+      name: string; 
+      specialty: string; 
+      appointmentCount: number; 
+      revenue: number 
+    }>();
+    
+    filteredPayments
+      .filter(p => p.status === 'completed' && p.appointment?.doctor) // Ne garder que les paiements complétés
+      .forEach(p => {
+        if (p.appointment?.doctor) {
+          const doctorId = p.appointment.doctor.id;
+          const doctorName = `Dr. ${p.appointment.doctor.firstName} ${p.appointment.doctor.lastName}`;
+          const specialty = p.appointment.doctor.specialty || 'Non spécifié';
+          const current = doctorMap.get(doctorId) || { 
+            name: doctorName, 
+            specialty, 
+            appointmentCount: 0, 
+            revenue: 0 
+          };
+          
+          doctorMap.set(doctorId, {
+            name: doctorName,
+            specialty,
+            appointmentCount: current.appointmentCount + 1, // Incrémenter le compteur de rendez-vous
+            revenue: current.revenue + p.amount
+          });
+        }
+      });
 
-    const topDoctors = Array.from(doctorMap.values())
-      .sort((a, b) => b.amount - a.amount)
-      .slice(0, 5);
+    // Trier par nombre de rendez-vous (décroissant)
+    const topDoctorsByAppointments = Array.from(doctorMap.values())
+      .sort((a, b) => b.appointmentCount - a.appointmentCount) // Tri par nombre de rendez-vous
+      .slice(0, 5); // Top 5
 
     setTransactionStats({
       totalAmount,
@@ -307,7 +328,7 @@ const FinancialReports: React.FC = () => {
       count,
       byStatus,
       byPaymentMethod,
-      topDoctors
+      topDoctorsByAppointments
     });
   };
 
@@ -551,7 +572,7 @@ const FinancialReports: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap gap-3">
-          {/* Barre de recherche - Plus visible */}
+          {/* Barre de recherche */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
@@ -885,59 +906,66 @@ const FinancialReports: React.FC = () => {
           </div>
         </div>
 
-        {/* Méthodes de paiement */}
+        {/* ✅ Méthodes de paiement - Montants payés par les patients */}
         <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <CreditCard className="w-5 h-5 text-green-600" />
             Méthodes de paiement
           </h3>
           <div className="space-y-4">
-            {Object.entries(transactionStats.byPaymentMethod).map(([method, amount]) => (
-              <div key={method}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-600">{method}</span>
-                  <span className="font-medium text-gray-900">{formatCurrency(amount)}</span>
+            {Object.entries(transactionStats.byPaymentMethod).length > 0 ? (
+              Object.entries(transactionStats.byPaymentMethod).map(([method, amount]) => (
+                <div key={method}>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-600">{method}</span>
+                    <span className="font-medium text-gray-900">{formatCurrency(amount)}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="bg-green-500 h-2 rounded-full" 
+                         style={{ width: `${transactionStats.totalAmount ? (amount / transactionStats.totalAmount) * 100 : 0}%` }}></div>
+                  </div>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-green-500 h-2 rounded-full" 
-                       style={{ width: `${transactionStats.totalAmount ? (amount / transactionStats.totalAmount) * 100 : 0}%` }}></div>
-                </div>
-              </div>
-            ))}
-            {Object.keys(transactionStats.byPaymentMethod).length === 0 && (
-              <p className="text-gray-500 text-center py-4">Aucune donnée disponible</p>
+              ))
+            ) : (
+              <p className="text-gray-500 text-center py-4">Aucun paiement complété</p>
             )}
           </div>
         </div>
 
-        {/* Top médecins */}
+        {/* ✅ Top médecins - Classés par nombre de rendez-vous confirmés */}
         <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <Award className="w-5 h-5 text-yellow-500" />
-            Top médecins
+            Top médecins (par rendez-vous)
           </h3>
           <div className="space-y-4">
-            {transactionStats.topDoctors.map((doctor, index) => (
-              <div key={doctor.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                    index === 0 ? 'bg-yellow-500 text-white' :
-                    index === 1 ? 'bg-gray-400 text-white' :
-                    index === 2 ? 'bg-orange-500 text-white' :
-                    'bg-gray-200 text-gray-600'
-                  }`}>
-                    {index + 1}
-                  </span>
-                  <div>
-                    <p className="font-medium text-gray-900">{doctor.name}</p>
-                    <p className="text-xs text-gray-500">{doctor.count} transactions</p>
+            {transactionStats.topDoctorsByAppointments.length > 0 ? (
+              transactionStats.topDoctorsByAppointments.map((doctor, index) => (
+                <div key={doctor.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                      index === 0 ? 'bg-yellow-500 text-white' :
+                      index === 1 ? 'bg-gray-400 text-white' :
+                      index === 2 ? 'bg-orange-500 text-white' :
+                      'bg-gray-200 text-gray-600'
+                    }`}>
+                      {index + 1}
+                    </span>
+                    <div>
+                      <p className="font-medium text-gray-900">{doctor.name}</p>
+                      <p className="text-xs text-gray-500">{doctor.specialty}</p>
+                      <p className="text-xs text-blue-600 font-medium mt-1">
+                        {doctor.appointmentCount} rendez-vous confirmés
+                      </p>
+                    </div>
                   </div>
+                  <p className="text-sm font-semibold text-green-600">
+                    {formatCurrency(doctor.revenue)}
+                  </p>
                 </div>
-                <p className="font-bold text-green-600">{formatCurrency(doctor.amount)}</p>
-              </div>
-            ))}
-            {transactionStats.topDoctors.length === 0 && (
-              <p className="text-gray-500 text-center py-4">Aucune donnée disponible</p>
+              ))
+            ) : (
+              <p className="text-gray-500 text-center py-4">Aucun rendez-vous confirmé</p>
             )}
           </div>
         </div>
