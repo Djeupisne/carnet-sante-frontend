@@ -16,7 +16,7 @@ import PatientDashboard from './components/Dashboard/PatientDashboard'
 import DoctorDashboard from './components/Dashboard/DoctorDashboard'
 import AppointmentList from './components/Appointments/AppointmentList'
 import BookAppointment from './components/Appointments/BookAppointment'
-import AppointmentDetails from './pages/AppointmentDetails'  // ✅ NOUVEL IMPORT
+import AppointmentDetails from './pages/AppointmentDetails'
 import ProtectedRoute from './components/Auth/ProtectedRoute'
 import NotFoundPage from './pages/NotFoundPage'
 
@@ -38,7 +38,7 @@ const RootRouter: React.FC = () => {
   return user ? <Navigate to="/dashboard" replace /> : <HomePage />;
 }
 
-// ✅ COMPOSANT DE REDIRECTION SELON LE RÔLE
+// ✅ COMPOSANT DE REDIRECTION SELON LE RÔLE - CORRIGÉ
 const DashboardRouter: React.FC = () => {
   const { user } = useAuth();
   
@@ -54,8 +54,13 @@ const DashboardRouter: React.FC = () => {
     return <Navigate to="/login" replace />;
   }
   
-  // ✅ REDIRECTION INTELLIGENTE
-  if (user.role === 'doctor' || user.role === 'admin' || user.role === 'hospital_admin') {
+  // ✅ REDIRECTION CORRECTE SELON LE RÔLE
+  if (user.role === 'admin') {
+    console.log('👑 Affichage du AdminDashboard');
+    return <AdminDashboard />;
+  }
+  
+  if (user.role === 'doctor' || user.role === 'hospital_admin') {
     console.log('👨‍⚕️ Affichage du DoctorDashboard');
     return <DoctorDashboard />;
   }
@@ -87,14 +92,45 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
+              
+              {/* Routes admin */}
               <Route 
-  path="/doctor/calendar" 
-  element={
-    <ProtectedRoute>
-      <DoctorCalendarPage />
-    </ProtectedRoute>
-  } 
-/>
+                path="/admin" 
+                element={
+                  <ProtectedRoute>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              {/* Routes médecin */}
+              <Route 
+                path="/doctor/calendar" 
+                element={
+                  <ProtectedRoute>
+                    <DoctorCalendarPage />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/doctor/patients" 
+                element={
+                  <ProtectedRoute>
+                    <DoctorPatientsPage />
+                  </ProtectedRoute>
+                } 
+              />
+
+              <Route 
+                path="/doctor/appointments" 
+                element={
+                  <ProtectedRoute>
+                    <DoctorAppointmentsPage />
+                  </ProtectedRoute>
+                } 
+              />
+              
               {/* Routes patient */}
               <Route 
                 path="/appointments" 
@@ -114,48 +150,11 @@ function App() {
                 } 
               />
               
-              {/* ✅ NOUVELLE ROUTE - Détails du rendez-vous */}
               <Route 
                 path="/appointments/:id" 
                 element={
                   <ProtectedRoute>
                     <AppointmentDetails />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-  path="/admin" 
-  element={
-    <ProtectedRoute>
-      <AdminDashboard />
-    </ProtectedRoute>
-  } 
-/>
-              {/* Routes médecin */}
-              <Route 
-                path="/doctor/appointments" 
-                element={
-                  <ProtectedRoute>
-                    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                      <div className="bg-white p-8 rounded-lg shadow-sm text-center">
-                        <h1 className="text-2xl font-bold text-gray-900 mb-4">Gestion des rendez-vous</h1>
-                        <p className="text-gray-600">Page réservée aux médecins</p>
-                      </div>
-                    </div>
-                  </ProtectedRoute>
-                } 
-              />
-              
-              <Route 
-                path="/doctor/calendar" 
-                element={
-                  <ProtectedRoute>
-                    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                      <div className="bg-white p-8 rounded-lg shadow-sm text-center">
-                        <h1 className="text-2xl font-bold text-gray-900 mb-4">Gestion du calendrier</h1>
-                        <p className="text-gray-600">Page réservée aux médecins</p>
-                      </div>
-                    </div>
                   </ProtectedRoute>
                 } 
               />
@@ -179,23 +178,7 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
-              <Route 
-  path="/doctor/patients" 
-  element={
-    <ProtectedRoute>
-      <DoctorPatientsPage />
-    </ProtectedRoute>
-  } 
-/>
-
-<Route 
-  path="/doctor/appointments" 
-  element={
-    <ProtectedRoute>
-      <DoctorAppointmentsPage />
-    </ProtectedRoute>
-  } 
-/>
+              
               <Route 
                 path="/profile" 
                 element={
