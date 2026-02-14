@@ -50,7 +50,22 @@ export interface AuthResponse {
   message?: string
 }
 
+export interface AdminLoginResponse {
+  success: boolean
+  token: string
+  user: {
+    id: string
+    email: string
+    firstName: string
+    lastName: string
+    role: 'admin'
+  }
+}
+
 export const authService = {
+  /**
+   * ✅ Connexion unifiée (admin + patients + médecins)
+   */
   async login(credentials: LoginData): Promise<AuthResponse> {
     try {
       console.log('🔐 authService.login - Envoi des identifiants...')
@@ -79,7 +94,13 @@ export const authService = {
 
       const { user, token } = response.data.data
 
-      console.log('✓ User reçu:', user)
+      console.log('✓ User reçu:', { 
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        firstName: user.firstName,
+        lastName: user.lastName
+      })
       console.log('✓ Token reçu:', token ? 'Oui' : 'Non')
 
       if (!user || !token) {
@@ -101,6 +122,11 @@ export const authService = {
         throw new Error('Email ou mot de passe incorrect')
       }
 
+      if (error.response?.status === 403) {
+        console.error('403 - Accès refusé')
+        throw new Error('Accès non autorisé')
+      }
+
       if (error.response?.status === 423) {
         console.error('423 - Compte verrouillé')
         throw new Error('Compte temporairement verrouillé. Réessayez dans 15 minutes.')
@@ -116,10 +142,48 @@ export const authService = {
     }
   },
 
+  /**
+   * ✅ Connexion dédiée pour les admins (optionnelle)
+   */
+  async adminLogin(credentials: LoginData): Promise<AdminLoginResponse> {
+    try {
+      console.log('👑 authService.adminLogin - Tentative de connexion admin...')
+      console.log('Email:', credentials.email)
+
+      const response = await api.post('/auth/admin/login', credentials)
+
+      console.log('✓ Réponse admin:', response.data)
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Erreur de connexion admin')
+      }
+
+      return response.data
+    } catch (error: any) {
+      console.error('❌ Erreur connexion admin:', error)
+      
+      if (error.response?.status === 401) {
+        throw new Error('Identifiants admin incorrects')
+      }
+      
+      throw error
+    }
+  },
+
+  /**
+   * ✅ Inscription (patients et médecins uniquement)
+   */
   async register(userData: RegisterData): Promise<AuthResponse> {
     try {
       console.log('📝 authService.register - Envoi des données...')
       console.log('Email:', userData.email)
+      console.log('Rôle:', userData.role)
+
+      // Vérifier que l'email n'est pas un email admin
+      const adminEmails = ['admin@carnetsante.com', 'superadmin@carnetsante.com']
+      if (adminEmails.includes(userData.email.toLowerCase())) {
+        throw new Error('Cet email ne peut pas être utilisé pour créer un compte')
+      }
 
       // ✅ Adaptation des données pour correspondre au modèle User
       const registerData: any = {
@@ -173,7 +237,13 @@ export const authService = {
 
       const { user, token } = response.data.data
 
-      console.log('✓ User reçu:', user)
+      console.log('✓ User reçu:', { 
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        firstName: user.firstName,
+        lastName: user.lastName
+      })
       console.log('✓ Token reçu:', token ? 'Oui' : 'Non')
 
       if (!user || !token) {
@@ -194,6 +264,11 @@ export const authService = {
         throw new Error('Cet email est déjà utilisé')
       }
 
+      if (error.response?.status === 403) {
+        console.error('403 - Email non autorisé')
+        throw new Error('Cet email ne peut pas être utilisé pour créer un compte')
+      }
+
       if (error.response?.data?.message) {
         console.error('Erreur du serveur:', error.response.data.message)
         throw new Error(error.response.data.message)
@@ -212,6 +287,9 @@ export const authService = {
     }
   },
 
+  /**
+   * ✅ Déconnexion
+   */
   async logout(): Promise<void> {
     try {
       console.log('🚪 authService.logout')
@@ -223,6 +301,9 @@ export const authService = {
     }
   },
 
+  /**
+   * ✅ Récupérer l'utilisateur actuel
+   */
   async getCurrentUser(): Promise<User> {
     try {
       console.log('👤 authService.getCurrentUser')
@@ -233,7 +314,13 @@ export const authService = {
       }
 
       const user = response.data.data.user
-      console.log('✓ User actuel:', user)
+      console.log('✓ User actuel:', { 
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        firstName: user.firstName,
+        lastName: user.lastName
+      })
       return user
     } catch (error: any) {
       console.error('❌ Erreur getCurrentUser:', error)
@@ -241,6 +328,9 @@ export const authService = {
     }
   },
 
+  /**
+   * ✅ Rafraîchir le token
+   */
   async refreshToken(): Promise<AuthResponse> {
     try {
       console.log('🔄 authService.refreshToken')
@@ -264,7 +354,10 @@ export const authService = {
     }
   },
 
-  async forgotPassword(email: string): Promise<void> {
+  /**
+   * ✅ Demander la réinitialisation du mot de passe
+   */
+  async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
     try {
       console.log('📧 authService.forgotPassword')
       const response = await api.post('/auth/forgot-password', { email })
@@ -276,7 +369,10 @@ export const authService = {
     }
   },
 
-  async resetPassword(token: string, password: string): Promise<void> {
+  /**
+   * ✅ Réinitialiser le mot de passe
+   */
+  async resetPassword(token: string, password: string): Promise<{ success: boolean; message: string }> {
     try {
       console.log('🔑 authService.resetPassword')
       const response = await api.post('/auth/reset-password', { token, password })
@@ -286,5 +382,13 @@ export const authService = {
       console.error('❌ Erreur resetPassword:', error)
       throw error
     }
+  },
+
+  /**
+   * ✅ Vérifier si l'email est un email admin
+   */
+  isAdminEmail(email: string): boolean {
+    const adminEmails = ['admin@carnetsante.com', 'superadmin@carnetsante.com']
+    return adminEmails.includes(email.toLowerCase())
   }
 }
