@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { userService } from '../../services/userService';
 import { appointmentService } from '../../services/appointmentService';
@@ -42,7 +42,6 @@ interface DoctorUser {
 
 const DoctorDashboard: React.FC = () => {
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
   const { showNotification } = useNotification();
   const doctorUser = user as DoctorUser;
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -60,12 +59,10 @@ const DoctorDashboard: React.FC = () => {
   // GESTION DE LA DÉCONNEXION
   // ============================================
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     if (window.confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
       try {
-        await logout();
-        showNotification('✅ Déconnexion réussie', 'success');
-        navigate('/login');
+        logout(); // La redirection vers "/" et la notification sont gérées automatiquement dans AuthContext
       } catch (error) {
         console.error('❌ Erreur lors de la déconnexion:', error);
         showNotification('❌ Erreur lors de la déconnexion', 'error');
