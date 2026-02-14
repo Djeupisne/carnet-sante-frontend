@@ -38,6 +38,7 @@ import { useNavigate } from 'react-router-dom';
 import { adminService, User as UserType, DashboardStats } from '../../services/adminService';
 import { calendarService } from '../../services/calendarService';
 import UserManagement from '../../components/Admin/UserManagement';
+import AppointmentManagement from '../../components/Admin/AppointmentManagement';
 
 interface Calendar {
   id: string;
@@ -550,21 +551,48 @@ const AdminDashboard: React.FC = () => {
 
         {activeTab === 'appointments' && (
           <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Gestion des rendez-vous</h2>
-            <p className="text-gray-600">Page en cours de développement...</p>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-gradient-to-br from-orange-500 to-pink-600 rounded-xl shadow-md">
+                  <Calendar className="w-6 h-6 text-white" />
+                </div>
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-pink-600 bg-clip-text text-transparent">
+                  Gestion des rendez-vous
+                </h2>
+              </div>
+            </div>
+            <AppointmentManagement />
           </div>
         )}
 
         {activeTab === 'financial' && (
           <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Rapports financiers</h2>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl shadow-md">
+                  <DollarSign className="w-6 h-6 text-white" />
+                </div>
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                  Rapports financiers
+                </h2>
+              </div>
+            </div>
             <p className="text-gray-600">Page en cours de développement...</p>
           </div>
         )}
 
         {activeTab === 'calendars' && (
           <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Gestion des calendriers</h2>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl shadow-md">
+                  <Calendar className="w-6 h-6 text-white" />
+                </div>
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                  Gestion des calendriers
+                </h2>
+              </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {calendars.map((calendar) => (
                 <div key={calendar.id} className="border border-gray-200 rounded-xl p-6 hover:shadow-xl transition-all hover:-translate-y-1 bg-gradient-to-br from-white to-gray-50">
