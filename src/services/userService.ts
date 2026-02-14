@@ -84,13 +84,10 @@ export const userService = {
       const response = await api.get('/users', { params: { role: 'doctor' } })
       console.log('✅ Réponse de l\'API pour les médecins:', response.data)
       
-      // La réponse backend renvoie directement un tableau
-      // Normaliser la réponse pour toujours avoir { success, data }
       if (Array.isArray(response.data)) {
         return { success: true, data: response.data }
       }
       
-      // Si c'est déjà dans le bon format
       return response.data
     } catch (error: any) {
       console.error('❌ Erreur dans getAllDoctors:', error.response?.data || error.message)
@@ -104,13 +101,10 @@ export const userService = {
       const response = await api.get('/users', { params: { role: 'patient' } })
       console.log('✅ Réponse de l\'API pour les patients:', response.data)
       
-      // La réponse backend renvoie directement un tableau
-      // Normaliser la réponse pour toujours avoir { success, data }
       if (Array.isArray(response.data)) {
         return { success: true, data: response.data }
       }
       
-      // Si c'est déjà dans le bon format
       return response.data
     } catch (error: any) {
       console.error('❌ Erreur dans getAllPatients:', error.response?.data || error.message)
@@ -132,6 +126,72 @@ export const userService = {
       throw new Error(
         error.response?.data?.message || 'Erreur lors de la mise à jour de l\'utilisateur'
       )
+    }
+  },
+
+  // ✅ NOUVELLE MÉTHODE: Récupérer un utilisateur par son ID
+  async getUserById(userId: string): Promise<User> {
+    try {
+      console.log(`👤 Récupération de l'utilisateur ${userId}...`);
+      const response = await api.get(`/users/${userId}`);
+      
+      console.log('✅ Réponse getUserById:', response.data);
+      
+      // La réponse peut être directement l'utilisateur ou { success, data }
+      if (response.data && response.data.success && response.data.data) {
+        return response.data.data;
+      } else if (response.data && response.data.id) {
+        return response.data;
+      }
+      
+      throw new Error('Format de réponse invalide');
+    } catch (error: any) {
+      console.error(`❌ Erreur dans getUserById pour ${userId}:`, error.response?.data || error.message);
+      throw new Error(
+        error.response?.data?.message || 'Erreur lors de la récupération de l\'utilisateur'
+      );
+    }
+  },
+
+  // ✅ OPTIONNEL: Récupérer plusieurs utilisateurs par leurs IDs
+  async getUsersByIds(userIds: string[]): Promise<User[]> {
+    try {
+      console.log(`👥 Récupération de ${userIds.length} utilisateurs...`);
+      
+      // Si votre backend supporte une requête batch
+      const response = await api.post('/users/batch', { userIds });
+      
+      if (response.data && response.data.success && response.data.data) {
+        return response.data.data;
+      }
+      
+      // Fallback: récupérer un par un (moins efficace)
+      const users: User[] = [];
+      for (const id of userIds) {
+        try {
+          const user = await this.getUserById(id);
+          users.push(user);
+        } catch (error) {
+          console.warn(`⚠️ Impossible de récupérer l'utilisateur ${id}`);
+        }
+      }
+      
+      return users;
+    } catch (error: any) {
+      console.error('❌ Erreur dans getUsersByIds:', error.response?.data || error.message);
+      
+      // Fallback en cas d'erreur
+      const users: User[] = [];
+      for (const id of userIds) {
+        try {
+          const user = await this.getUserById(id);
+          users.push(user);
+        } catch (error) {
+          // Ignorer les erreurs individuelles
+        }
+      }
+      
+      return users;
     }
   },
 }
