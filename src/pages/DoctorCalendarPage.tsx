@@ -5,18 +5,13 @@ import { useNotification } from '../context/NotificationContext';
 import { calendarService } from '../services/calendarService';
 import { Calendar, Check, Trash, Edit, Plus, X, Clock, Save, AlertCircle, AlertTriangle, ArrowLeft, LogOut, Bell } from 'lucide-react';
 
-// Interface correspondant au service existant
+// Interface correspondant au service
 interface Calendar {
   id: string;
   date: string;
   slots: string[];
   confirmed: boolean;
   doctor?: { firstName: string; lastName: string; id: string };
-}
-
-interface NotificationProps {
-  message: string;
-  type: 'success' | 'error' | 'warning' | 'info';
 }
 
 interface DoctorUser {
@@ -39,17 +34,10 @@ const DoctorCalendarPage: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [notification, setNotification] = useState<NotificationProps | null>(null);
 
   useEffect(() => {
     fetchCalendars();
   }, []);
-
-  // Afficher une notification
-  const showLocalNotification = (message: string, type: NotificationProps['type']) => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 5000);
-  };
 
   const fetchCalendars = async () => {
     try {
@@ -68,8 +56,8 @@ const DoctorCalendarPage: React.FC = () => {
       }
     } catch (error: any) {
       console.error('❌ Erreur lors de la récupération des calendriers:', error);
-      showLocalNotification(
-        'Impossible de charger les calendriers. Vérifiez votre connexion.',
+      showNotification(
+        error.response?.data?.message || 'Impossible de charger les calendriers',
         'error'
       );
       setCalendars([]);
@@ -79,35 +67,44 @@ const DoctorCalendarPage: React.FC = () => {
   };
 
   const handleCreateCalendar = async () => {
+    // Validation
     if (!newCalendar.date) {
-      showLocalNotification('Veuillez sélectionner une date', 'error');
+      showNotification('Veuillez sélectionner une date', 'error');
       return;
     }
-    if (newCalendar.slots.some(slot => !slot)) {
-      showLocalNotification('Veuillez remplir tous les créneaux', 'error');
+    
+    // Filtrer les créneaux vides
+    const validSlots = newCalendar.slots.filter(slot => slot.trim() !== '');
+    if (validSlots.length === 0) {
+      showNotification('Veuillez ajouter au moins un créneau horaire', 'error');
       return;
     }
 
     try {
-      console.log('📅 Création du calendrier:', newCalendar);
-      const response = await calendarService.createCalendar(newCalendar);
+      console.log('📅 Création du calendrier:', { date: newCalendar.date, slots: validSlots });
+      
+      const response = await calendarService.createCalendar({
+        date: newCalendar.date,
+        slots: validSlots
+      });
       
       if (response && response.success && response.data) {
         setCalendars([...calendars, response.data]);
         setNewCalendar({ date: '', slots: [''] });
         setIsCreating(false);
-        showLocalNotification('✅ Calendrier créé avec succès', 'success');
+        showNotification('✅ Calendrier créé avec succès', 'success');
         
+        // Notifier les patients (optionnel)
         try {
           await calendarService.notifyPatients(response.data);
           console.log('✉️ Patients notifiés');
         } catch (notifyError) {
-          console.warn('⚠️ Notification des patients échouée (non bloquant)');
+          console.warn('⚠️ Notification des patients échouée');
         }
       }
     } catch (error: any) {
       console.error('❌ Erreur création calendrier:', error);
-      showLocalNotification(
+      showNotification(
         error.response?.data?.message || 'Erreur lors de la création du calendrier',
         'error'
       );
@@ -118,29 +115,31 @@ const DoctorCalendarPage: React.FC = () => {
     try {
       const updatedCalendar = calendars.find((c) => c.id === calendarId);
       if (!updatedCalendar) {
-        showLocalNotification('Calendrier introuvable', 'error');
+        showNotification('Calendrier introuvable', 'error');
         return;
       }
 
       console.log('📅 Mise à jour du calendrier:', calendarId);
+      
       const response = await calendarService.updateCalendar(calendarId, updatedCalendar);
       
       if (response && response.success && response.data) {
         setCalendars(calendars.map((c) => (c.id === calendarId ? response.data : c)));
-        showLocalNotification('✅ Calendrier mis à jour avec succès', 'success');
+        showNotification('✅ Calendrier mis à jour avec succès', 'success');
         setIsEditing(null);
         
+        // Sauvegarder version et notifier
         try {
           await calendarService.saveCalendarVersion(response.data);
           await calendarService.notifyPatients(response.data);
           console.log('✉️ Patients notifiés de la modification');
         } catch (notifyError) {
-          console.warn('⚠️ Notifications/versions échouées (non bloquant)');
+          console.warn('⚠️ Notifications/versions échouées');
         }
       }
     } catch (error: any) {
       console.error('❌ Erreur mise à jour calendrier:', error);
-      showLocalNotification(
+      showNotification(
         error.response?.data?.message || 'Erreur lors de la mise à jour du calendrier',
         'error'
       );
@@ -154,10 +153,10 @@ const DoctorCalendarPage: React.FC = () => {
       console.log('📅 Suppression du calendrier:', calendarId);
       await calendarService.deleteCalendar(calendarId);
       setCalendars(calendars.filter((c) => c.id !== calendarId));
-      showLocalNotification('✅ Calendrier supprimé avec succès', 'success');
+      showNotification('✅ Calendrier supprimé avec succès', 'success');
     } catch (error: any) {
       console.error('❌ Erreur suppression calendrier:', error);
-      showLocalNotification(
+      showNotification(
         error.response?.data?.message || 'Erreur lors de la suppression du calendrier',
         'error'
       );
@@ -173,10 +172,10 @@ const DoctorCalendarPage: React.FC = () => {
           c.id === calendarId ? { ...c, confirmed: true } : c
         )
       );
-      showLocalNotification('✅ Calendrier confirmé avec succès', 'success');
+      showNotification('✅ Calendrier confirmé avec succès', 'success');
     } catch (error: any) {
       console.error('❌ Erreur confirmation calendrier:', error);
-      showLocalNotification(
+      showNotification(
         error.response?.data?.message || 'Erreur lors de la confirmation du calendrier',
         'error'
       );
@@ -266,31 +265,6 @@ const DoctorCalendarPage: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* NOTIFICATION */}
-      {notification && (
-        <div className={`futuristic-card p-4 animate-slide-in border-2 ${
-          notification.type === 'success' ? 'border-green-500/50 bg-green-500/10' :
-          notification.type === 'error' ? 'border-red-500/50 bg-red-500/10' :
-          notification.type === 'warning' ? 'border-yellow-500/50 bg-yellow-500/10' :
-          'border-blue-500/50 bg-blue-500/10'
-        }`}>
-          <div className="flex items-center gap-3">
-            {notification.type === 'success' && <Check className="w-5 h-5 text-green-400" />}
-            {notification.type === 'error' && <X className="w-5 h-5 text-red-400" />}
-            {notification.type === 'warning' && <AlertTriangle className="w-5 h-5 text-yellow-400" />}
-            {notification.type === 'info' && <AlertCircle className="w-5 h-5 text-blue-400" />}
-            <span className={`${
-              notification.type === 'success' ? 'text-green-300' :
-              notification.type === 'error' ? 'text-red-300' :
-              notification.type === 'warning' ? 'text-yellow-300' :
-              'text-blue-300'
-            }`}>
-              {notification.message}
-            </span>
-          </div>
-        </div>
-      )}
 
       {/* HEADER DE LA PAGE */}
       <div className="flex justify-between items-center">
@@ -391,7 +365,7 @@ const DoctorCalendarPage: React.FC = () => {
             <div className="flex gap-3 pt-4">
               <button
                 onClick={handleCreateCalendar}
-                disabled={!newCalendar.date || newCalendar.slots.some(s => !s)}
+                disabled={!newCalendar.date}
                 className="futuristic-btn flex items-center gap-2 flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Save className="w-4 h-4" />
