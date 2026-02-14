@@ -5,6 +5,8 @@ import { store } from './store/store'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { NotificationProvider } from './context/NotificationContext'
 import DoctorCalendarPage from './pages/DoctorCalendarPage';
+import DoctorPatientsPage from './pages/DoctorPatientsPage';
+import DoctorAppointmentsPage from './pages/DoctorAppointmentsPage';
 // Pages
 import HomePage from './pages/HomePage'
 import Login from './components/Auth/Login'
@@ -169,7 +171,23 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
-              
+              <Route 
+  path="/doctor/patients" 
+  element={
+    <ProtectedRoute>
+      <DoctorPatientsPage />
+    </ProtectedRoute>
+  } 
+/>
+
+<Route 
+  path="/doctor/appointments" 
+  element={
+    <ProtectedRoute>
+      <DoctorAppointmentsPage />
+    </ProtectedRoute>
+  } 
+/>
               <Route 
                 path="/profile" 
                 element={
