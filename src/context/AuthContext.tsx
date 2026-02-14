@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react'
 import { authService, LoginData, RegisterData } from '../services/authService'
+import { ADMIN_USERS } from '../config/adminUsers'
 
 export interface User {
   id: string
@@ -92,11 +93,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (token && savedUser) {
       try {
-        console.log('Vérification du token...')
+        console.log('🔍 Vérification du token...')
         const user = JSON.parse(savedUser)
         dispatch({ type: 'SET_USER', payload: user })
       } catch (error) {
-        console.error('Erreur de vérification du token:', error)
+        console.error('❌ Erreur de vérification du token:', error)
         localStorage.removeItem('token')
         localStorage.removeItem('user')
         dispatch({ type: 'SET_LOADING', payload: false })
@@ -109,7 +110,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     dispatch({ type: 'SET_LOADING', payload: true })
     try {
-      console.log('Appel login...')
+      console.log('🔐 Tentative de connexion pour:', email)
+      
+      // ✅ Vérifier d'abord si c'est un admin prédéfini
+      const adminUser = ADMIN_USERS.find(
+        admin => admin.email === email && admin.password === password
+      )
+
+      if (adminUser) {
+        console.log('✅ Admin prédéfini détecté, connexion locale')
+        
+        // Admin local - pas besoin d'appeler l'API
+        const adminData: User = {
+          id: 'admin-' + Date.now(),
+          email: adminUser.email,
+          firstName: adminUser.firstName,
+          lastName: adminUser.lastName,
+          role: 'admin',
+          uniqueCode: 'ADMIN',
+          dateOfBirth: '',
+          gender: '',
+          isActive: true,
+          isVerified: true,
+          profileCompleted: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+
+        const token = 'admin-token-' + Date.now()
+        localStorage.setItem('token', token)
+        localStorage.setItem('user', JSON.stringify(adminData))
+
+        dispatch({ type: 'SET_USER', payload: adminData })
+
+        setTimeout(() => {
+          const event = new CustomEvent('showNotification', {
+            detail: {
+              message: `Bienvenue ${adminUser.firstName}! (Admin)`,
+              type: 'success',
+            },
+          })
+          window.dispatchEvent(event)
+        }, 100)
+
+        return
+      }
+
+      // Sinon, appel API normal pour les patients/médecins
+      console.log('📡 Appel API login...')
       const result = await authService.login({ email, password })
 
       if (!result || !result.user) {
@@ -124,7 +172,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       dispatch({ type: 'SET_USER', payload: user })
 
-      // Notification de succès
       setTimeout(() => {
         const event = new CustomEvent('showNotification', {
           detail: {
@@ -134,8 +181,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         })
         window.dispatchEvent(event)
       }, 100)
+
     } catch (error: any) {
-      console.error('Erreur login:', error)
+      console.error('❌ Erreur login:', error)
 
       const message =
         error.response?.data?.message || error.message || 'Erreur de connexion'
@@ -156,7 +204,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (userData: RegisterData) => {
     dispatch({ type: 'SET_LOADING', payload: true })
     try {
-      console.log('Appel register...')
+      console.log('📝 Appel register...')
+      
+      // Vérifier si l'email essaye de créer un compte admin
+      const isAdminEmail = ADMIN_USERS.some(admin => admin.email === userData.email)
+      
+      if (isAdminEmail) {
+        throw new Error('Cet email ne peut pas être utilisé pour créer un compte')
+      }
+
       const result = await authService.register(userData)
 
       if (!result || !result.user) {
@@ -165,7 +221,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const { user, token, message } = result
 
-      console.log('User reçu:', user)
+      console.log('✅ User reçu:', user)
 
       // Stocker le token et les données utilisateur
       localStorage.setItem('token', token)
@@ -173,7 +229,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       dispatch({ type: 'SET_USER', payload: user })
 
-      // Notification de succès
       setTimeout(() => {
         const event = new CustomEvent('showNotification', {
           detail: {
@@ -183,8 +238,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         })
         window.dispatchEvent(event)
       }, 100)
+
     } catch (error: any) {
-      console.error('Erreur register:', error)
+      console.error('❌ Erreur register:', error)
 
       const message =
         error.response?.data?.message || error.message || "Erreur lors de l'inscription"
@@ -203,15 +259,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const logout = () => {
-    console.log('Logout...')
+    console.log('🚪 Logout...')
+    
+    // Récupérer l'utilisateur pour savoir si c'est un admin
+    const savedUser = localStorage.getItem('user')
+    const isAdmin = savedUser ? JSON.parse(savedUser).role === 'admin' : false
+    
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     dispatch({ type: 'LOGOUT' })
 
-    // Appeler l'API de déconnexion
-    authService.logout().catch((error) => {
-      console.warn('Erreur logout API:', error)
-    })
+    // Appeler l'API de déconnexion seulement si ce n'est pas un admin local
+    if (!isAdmin) {
+      authService.logout().catch((error) => {
+        console.warn('⚠️ Erreur logout API:', error)
+      })
+    }
 
     setTimeout(() => {
       const event = new CustomEvent('showNotification', {
@@ -220,14 +283,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       window.dispatchEvent(event)
     }, 100)
 
-    // Redirection automatique vers la page d'accueil après déconnexion
+    // Redirection automatique vers la page d'accueil
     setTimeout(() => {
       window.location.href = '/'
     }, 200)
   }
 
   const updateUser = (user: User) => {
-    console.log('Update user...')
+    console.log('📝 Update user...')
     localStorage.setItem('user', JSON.stringify(user))
     dispatch({ type: 'SET_USER', payload: user })
   }
