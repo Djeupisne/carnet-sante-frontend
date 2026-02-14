@@ -38,8 +38,8 @@ import { useNavigate } from 'react-router-dom';
 import { adminService, User as UserType, DashboardStats } from '../../services/adminService';
 import { calendarService } from '../../services/calendarService';
 import UserManagement from '../../components/Admin/UserManagement';
-import AppointmentManagement from '../../components/Admin/AppointmentManagement'; // ✅ IMPORT MANQUANT
-import FinancialReports from '../../components/Admin/FinancialReports'; // ✅ IMPORT MANQUANT
+import AppointmentManagement from '../../components/Admin/AppointmentManagement';
+import FinancialReports from '../../components/Admin/FinancialReports';
 
 interface Calendar {
   id: string;
@@ -562,7 +562,7 @@ const AdminDashboard: React.FC = () => {
                 </h2>
               </div>
             </div>
-            <AppointmentManagement /> {/* ✅ COMPOSANT RENDU */}
+            <AppointmentManagement />
           </div>
         )}
 
@@ -578,7 +578,7 @@ const AdminDashboard: React.FC = () => {
                 </h2>
               </div>
             </div>
-            <FinancialReports /> {/* ✅ COMPOSANT RENDU */}
+            <FinancialReports />
           </div>
         )}
 
