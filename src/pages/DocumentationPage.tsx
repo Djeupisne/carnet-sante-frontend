@@ -10,15 +10,18 @@ import {
   Globe,
   Smartphone,
   Server,
-  Lock
+  Lock,
+  ChevronRight
 } from 'lucide-react';
 
 const DocumentationPage: React.FC = () => {
   const sections = [
     {
       title: "Guide utilisateur",
-      icon: <Users className="w-6 h-6" />,
-      color: "from-blue-500 to-cyan-500",
+      icon: <Users className="w-5 h-5" />,
+      color: "bg-blue-100",
+      textColor: "text-blue-600",
+      description: "Apprenez à utiliser toutes les fonctionnalités de la plateforme",
       links: [
         "Premiers pas",
         "Gestion des rendez-vous",
@@ -29,8 +32,10 @@ const DocumentationPage: React.FC = () => {
     },
     {
       title: "Guide médecin",
-      icon: <Code className="w-6 h-6" />,
-      color: "from-purple-500 to-pink-500",
+      icon: <Code className="w-5 h-5" />,
+      color: "bg-purple-100",
+      textColor: "text-purple-600",
+      description: "Configurez votre compte et gérez vos patients",
       links: [
         "Configuration du compte",
         "Gestion des patients",
@@ -41,8 +46,10 @@ const DocumentationPage: React.FC = () => {
     },
     {
       title: "API Documentation",
-      icon: <Server className="w-6 h-6" />,
-      color: "from-emerald-500 to-teal-500",
+      icon: <Server className="w-5 h-5" />,
+      color: "bg-emerald-100",
+      textColor: "text-emerald-600",
+      description: "Intégrez notre API dans vos applications",
       links: [
         "Authentification",
         "Endpoints",
@@ -53,8 +60,10 @@ const DocumentationPage: React.FC = () => {
     },
     {
       title: "Sécurité",
-      icon: <Lock className="w-6 h-6" />,
-      color: "from-red-500 to-pink-500",
+      icon: <Lock className="w-5 h-5" />,
+      color: "bg-red-100",
+      textColor: "text-red-600",
+      description: "Comprendre nos mesures de sécurité",
       links: [
         "Chiffrement des données",
         "RGPD",
@@ -65,8 +74,10 @@ const DocumentationPage: React.FC = () => {
     },
     {
       title: "Applications mobiles",
-      icon: <Smartphone className="w-6 h-6" />,
-      color: "from-orange-500 to-amber-500",
+      icon: <Smartphone className="w-5 h-5" />,
+      color: "bg-orange-100",
+      textColor: "text-orange-600",
+      description: "Utilisez nos applications iOS et Android",
       links: [
         "iOS",
         "Android",
@@ -77,8 +88,10 @@ const DocumentationPage: React.FC = () => {
     },
     {
       title: "Intégration",
-      icon: <Globe className="w-6 h-6" />,
-      color: "from-indigo-500 to-blue-500",
+      icon: <Globe className="w-5 h-5" />,
+      color: "bg-indigo-100",
+      textColor: "text-indigo-600",
+      description: "Intégrez nos services dans votre système",
       links: [
         "Systèmes de santé",
         "Dossier patient",
@@ -91,37 +104,32 @@ const DocumentationPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/20">
-      <nav className="glass sticky top-0 z-50 border-b border-white/20 shadow-sm">
+      <nav className="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            <Link to="/" className="flex items-center space-x-3 group">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-emerald-500 rounded-2xl blur-xl opacity-60 group-hover:opacity-100"></div>
-                <div className="relative bg-gradient-to-br from-blue-500 via-cyan-500 to-emerald-500 p-3 rounded-2xl shadow-lg">
-                  <BookOpen className="w-6 h-6 text-white" />
-                </div>
+          <div className="flex justify-between items-center h-16">
+            <Link to="/" className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-emerald-600 rounded-lg flex items-center justify-center">
+                <BookOpen className="w-4 h-4 text-white" />
               </div>
-              <h1 className="text-2xl font-black bg-gradient-to-r from-blue-600 via-cyan-600 to-emerald-600 bg-clip-text text-transparent">
-                Documentation
-              </h1>
+              <span className="font-bold text-gray-900">Carnet Santé</span>
             </Link>
             <Link
               to="/"
-              className="flex items-center gap-2 px-4 py-2 text-slate-700 hover:text-blue-600 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors text-sm"
             >
               <ArrowLeft className="w-4 h-4" />
-              Retour à l'accueil
+              Retour
             </Link>
           </div>
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center mb-16">
-          <h1 className="text-5xl md:text-6xl font-black text-slate-900 mb-6">
-            Documentation technique
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="text-center mb-12">
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            Documentation
           </h1>
-          <p className="text-xl text-slate-600 max-w-3xl mx-auto">
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Tout ce dont vous avez besoin pour utiliser et intégrer notre plateforme
           </p>
         </div>
@@ -130,62 +138,63 @@ const DocumentationPage: React.FC = () => {
           {sections.map((section, index) => (
             <div
               key={index}
-              className="feature-card group glass rounded-3xl p-8 border border-white/50 hover:shadow-2xl"
+              className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all border border-gray-200 overflow-hidden group cursor-pointer"
             >
-              <div className={`absolute inset-0 bg-gradient-to-br ${section.color} opacity-0 group-hover:opacity-5 rounded-3xl transition-opacity duration-500`}></div>
-              
-              <div className="relative mb-6">
-                <div className={`absolute inset-0 bg-gradient-to-br ${section.color} rounded-2xl blur-xl opacity-20 group-hover:opacity-40 transition-opacity duration-500`}></div>
-                <div className="relative bg-white rounded-2xl p-4 inline-flex shadow-lg">
-                  <div className={`bg-gradient-to-br ${section.color} bg-clip-text text-transparent`}>
-                    {section.icon}
+              <div className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className={`w-10 h-10 ${section.color} rounded-lg flex items-center justify-center`}>
+                    <div className={section.textColor}>
+                      {section.icon}
+                    </div>
                   </div>
+                  <h3 className="font-semibold text-gray-900">{section.title}</h3>
+                </div>
+
+                <p className="text-sm text-gray-500 mb-4">
+                  {section.description}
+                </p>
+
+                <ul className="space-y-2">
+                  {section.links.slice(0, 3).map((link, idx) => (
+                    <li key={idx} className="text-sm text-gray-600 hover:text-blue-600 transition-colors flex items-center gap-2">
+                      <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                      {link}
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="mt-4 flex items-center text-sm text-blue-600 group-hover:gap-2 transition-all">
+                  <span>Voir plus</span>
+                  <ChevronRight className="w-4 h-4" />
                 </div>
               </div>
-
-              <h3 className="text-xl font-bold text-slate-900 mb-4 group-hover:text-blue-600 transition-colors">
-                {section.title}
-              </h3>
-
-              <ul className="space-y-2">
-                {section.links.map((link, idx) => (
-                  <li key={idx}>
-                    <a
-                      href="#"
-                      className="text-slate-600 hover:text-blue-600 transition-colors text-sm flex items-center gap-2"
-                    >
-                      <div className={`w-1.5 h-1.5 rounded-full bg-gradient-to-r ${section.color}`}></div>
-                      {link}
-                    </a>
-                  </li>
-                ))}
-              </ul>
             </div>
           ))}
         </div>
 
-        <div className="mt-16 glass rounded-3xl p-8 border border-white/50">
+        {/* Quick Start */}
+        <div className="mt-12 bg-gradient-to-r from-blue-600 to-emerald-600 rounded-2xl p-8">
           <div className="flex items-center gap-4 mb-6">
-            <div className="p-3 bg-blue-100 rounded-xl">
-              <Zap className="w-6 h-6 text-blue-600" />
+            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+              <Zap className="w-6 h-6 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-slate-900">Démarrage rapide</h2>
+            <h2 className="text-2xl font-bold text-white">Démarrage rapide</h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white/50 rounded-xl p-6">
-              <div className="text-2xl font-bold text-blue-600 mb-2">1.</div>
-              <h3 className="font-semibold text-slate-900 mb-2">Créez un compte</h3>
-              <p className="text-sm text-slate-600">Inscrivez-vous gratuitement en quelques clics</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white/10 rounded-xl p-4 backdrop-blur">
+              <div className="text-2xl font-bold text-white mb-2">1.</div>
+              <h3 className="font-semibold text-white mb-1">Créez un compte</h3>
+              <p className="text-sm text-white/80">Inscrivez-vous gratuitement en quelques clics</p>
             </div>
-            <div className="bg-white/50 rounded-xl p-6">
-              <div className="text-2xl font-bold text-blue-600 mb-2">2.</div>
-              <h3 className="font-semibold text-slate-900 mb-2">Configurez votre profil</h3>
-              <p className="text-sm text-slate-600">Renseignez vos informations personnelles</p>
+            <div className="bg-white/10 rounded-xl p-4 backdrop-blur">
+              <div className="text-2xl font-bold text-white mb-2">2.</div>
+              <h3 className="font-semibold text-white mb-1">Configurez votre profil</h3>
+              <p className="text-sm text-white/80">Renseignez vos informations personnelles</p>
             </div>
-            <div className="bg-white/50 rounded-xl p-6">
-              <div className="text-2xl font-bold text-blue-600 mb-2">3.</div>
-              <h3 className="font-semibold text-slate-900 mb-2">Commencez à utiliser</h3>
-              <p className="text-sm text-slate-600">Prenez vos premiers rendez-vous</p>
+            <div className="bg-white/10 rounded-xl p-4 backdrop-blur">
+              <div className="text-2xl font-bold text-white mb-2">3.</div>
+              <h3 className="font-semibold text-white mb-1">Commencez à utiliser</h3>
+              <p className="text-sm text-white/80">Prenez vos premiers rendez-vous</p>
             </div>
           </div>
         </div>
