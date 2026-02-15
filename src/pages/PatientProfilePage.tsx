@@ -25,11 +25,36 @@ import {
   Moon,
   Sun,
   ChevronRight,
-  Loader2
+  Loader2,
+  Check,
+  AlertCircle
 } from 'lucide-react';
 
+interface EmergencyContact {
+  name: string;
+  phone: string;
+  relationship: string;
+}
+
+interface Address {
+  street: string;
+  city: string;
+  postalCode: string;
+  country: string;
+}
+
+interface UserPreferences {
+  language: string;
+  theme: 'light' | 'dark';
+  notifications: {
+    email: boolean;
+    sms: boolean;
+    push: boolean;
+  };
+}
+
 const PatientProfilePage: React.FC = () => {
-  const { user, updateUser, logout } = useAuth();
+  const { user, updateUser } = useAuth();
   const navigate = useNavigate();
   const { showNotification } = useNotification();
   const [loading, setLoading] = useState(false);
@@ -37,6 +62,7 @@ const PatientProfilePage: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'preferences'>('profile');
   const [userData, setUserData] = useState<any>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   
   const [formData, setFormData] = useState({
     firstName: '',
@@ -50,16 +76,16 @@ const PatientProfilePage: React.FC = () => {
       city: '',
       postalCode: '',
       country: 'France'
-    },
+    } as Address,
     bloodType: '',
     emergencyContact: {
       name: '',
       phone: '',
       relationship: ''
-    }
+    } as EmergencyContact
   });
 
-  const [preferences, setPreferences] = useState({
+  const [preferences, setPreferences] = useState<UserPreferences>({
     language: 'fr',
     theme: 'dark',
     notifications: {
@@ -75,11 +101,36 @@ const PatientProfilePage: React.FC = () => {
     confirmPassword: ''
   });
 
+  const [showPasswordErrors, setShowPasswordErrors] = useState({
+    currentPassword: false,
+    newPassword: false,
+    confirmPassword: false
+  });
+
+  // Charger les données utilisateur
   useEffect(() => {
     if (user?.id) {
       fetchUserData();
     }
   }, [user?.id]);
+
+  // Appliquer le thème
+  useEffect(() => {
+    const root = document.documentElement;
+    if (preferences.theme === 'light') {
+      root.classList.remove('dark');
+      root.classList.add('light');
+      // Changer les variables CSS pour le mode clair
+      root.style.setProperty('--bg-primary', '#f3f4f6');
+      root.style.setProperty('--text-primary', '#111827');
+    } else {
+      root.classList.remove('light');
+      root.classList.add('dark');
+      // Rétablir les variables CSS pour le mode sombre
+      root.style.setProperty('--bg-primary', '#0f172a');
+      root.style.setProperty('--text-primary', '#ffffff');
+    }
+  }, [preferences.theme]);
 
   const fetchUserData = async () => {
     try {
@@ -122,6 +173,50 @@ const PatientProfilePage: React.FC = () => {
     }
   };
 
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Vérifier le type de fichier
+    if (!file.type.startsWith('image/')) {
+      showNotification('❌ Veuillez sélectionner une image', 'error');
+      return;
+    }
+
+    // Vérifier la taille (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      showNotification('❌ L\'image ne doit pas dépasser 5MB', 'error');
+      return;
+    }
+
+    try {
+      setUploadingPhoto(true);
+      
+      // Créer un FormData pour l'envoi
+      const formData = new FormData();
+      formData.append('profilePicture', file);
+
+      // Appel API pour uploader la photo
+      const response = await userService.updateProfilePicture(formData);
+      
+      if (response.success) {
+        showNotification('✅ Photo de profil mise à jour', 'success');
+        // Mettre à jour l'utilisateur dans le contexte
+        if (user) {
+          updateUser({
+            ...user,
+            profilePicture: response.data.profilePicture
+          });
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erreur upload photo:', error);
+      showNotification('❌ Erreur lors de l\'upload', 'error');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   const handleSaveProfile = async () => {
     try {
       setSaving(true);
@@ -132,8 +227,7 @@ const PatientProfilePage: React.FC = () => {
         phoneNumber: formData.phoneNumber,
         address: formData.address,
         bloodType: formData.bloodType,
-        emergencyContact: formData.emergencyContact,
-        preferences: preferences
+        emergencyContact: formData.emergencyContact
       };
 
       const response = await userService.updateProfile(updateData);
@@ -159,9 +253,58 @@ const PatientProfilePage: React.FC = () => {
     }
   };
 
+  const handleSavePreferences = async () => {
+    try {
+      setSaving(true);
+      
+      const response = await userService.updatePreferences(preferences);
+      
+      if (response.success) {
+        showNotification('✅ Préférences mises à jour', 'success');
+      }
+    } catch (error) {
+      console.error('❌ Erreur sauvegarde préférences:', error);
+      showNotification('❌ Erreur lors de la sauvegarde', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleChangePassword = async () => {
+    // Réinitialiser les erreurs
+    setShowPasswordErrors({
+      currentPassword: false,
+      newPassword: false,
+      confirmPassword: false
+    });
+
+    // Validations
+    let hasError = false;
+    const errors = { ...showPasswordErrors };
+
+    if (!passwordData.currentPassword) {
+      errors.currentPassword = true;
+      hasError = true;
+    }
+    if (!passwordData.newPassword) {
+      errors.newPassword = true;
+      hasError = true;
+    }
+    if (!passwordData.confirmPassword) {
+      errors.confirmPassword = true;
+      hasError = true;
+    }
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       showNotification('❌ Les mots de passe ne correspondent pas', 'error');
+      return;
+    }
+    if (passwordData.newPassword.length < 6) {
+      showNotification('❌ Le mot de passe doit contenir au moins 6 caractères', 'error');
+      return;
+    }
+
+    if (hasError) {
+      setShowPasswordErrors(errors);
       return;
     }
 
@@ -219,6 +362,20 @@ const PatientProfilePage: React.FC = () => {
     } catch {
       return 'Date invalide';
     }
+  };
+
+  const getBloodTypeLabel = (type: string) => {
+    const types: Record<string, string> = {
+      'A+': 'A+',
+      'A-': 'A-',
+      'B+': 'B+',
+      'B-': 'B-',
+      'AB+': 'AB+',
+      'AB-': 'AB-',
+      'O+': 'O+',
+      'O-': 'O-'
+    };
+    return types[type] || type;
   };
 
   if (!user || loading) {
@@ -288,12 +445,36 @@ const PatientProfilePage: React.FC = () => {
         <div className="futuristic-card p-8 mb-6 text-center relative">
           <div className="relative inline-block">
             <div className="w-32 h-32 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-4xl font-bold text-white mx-auto">
-              {user.firstName?.[0]}{user.lastName?.[0]}
+              {user.profilePicture ? (
+                <img 
+                  src={user.profilePicture} 
+                  alt="Profile" 
+                  className="w-full h-full rounded-full object-cover"
+                />
+              ) : (
+                `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`
+              )}
             </div>
             {isEditing && (
-              <button className="absolute bottom-0 right-0 p-2 bg-blue-600 rounded-full hover:bg-blue-700 transition">
-                <Camera className="w-4 h-4 text-white" />
-              </button>
+              <div className="absolute bottom-0 right-0">
+                <input
+                  type="file"
+                  id="photo-upload"
+                  accept="image/*"
+                  onChange={handlePhotoUpload}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="photo-upload"
+                  className="p-2 bg-blue-600 rounded-full hover:bg-blue-700 transition cursor-pointer flex items-center justify-center"
+                >
+                  {uploadingPhoto ? (
+                    <Loader2 className="w-4 h-4 text-white animate-spin" />
+                  ) : (
+                    <Camera className="w-4 h-4 text-white" />
+                  )}
+                </label>
+              </div>
             )}
           </div>
           <h2 className="text-2xl font-bold text-white mt-4">
@@ -377,10 +558,19 @@ const PatientProfilePage: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-white/60 mb-1">Date de naissance</label>
-                  <p className="text-white flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-white/40" />
-                    {formatDate(formData.dateOfBirth)}
-                  </p>
+                  {isEditing ? (
+                    <input
+                      type="date"
+                      value={formData.dateOfBirth}
+                      onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <p className="text-white flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-white/40" />
+                      {formatDate(formData.dateOfBirth)}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -498,7 +688,7 @@ const PatientProfilePage: React.FC = () => {
                 ) : (
                   <p className="text-white flex items-center gap-2">
                     <Droplets className="w-4 h-4 text-red-400" />
-                    {formData.bloodType || 'Non renseigné'}
+                    {getBloodTypeLabel(formData.bloodType) || 'Non renseigné'}
                   </p>
                 )}
               </div>
@@ -599,38 +789,59 @@ const PatientProfilePage: React.FC = () => {
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-white/60 mb-1">Mot de passe actuel</label>
+                  <label className="block text-sm font-medium text-white/60 mb-1">
+                    Mot de passe actuel
+                  </label>
                   <input
                     type="password"
                     value={passwordData.currentPassword}
                     onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                    className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={`w-full px-4 py-2 bg-white/10 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      showPasswordErrors.currentPassword ? 'border-red-500' : 'border-white/20'
+                    }`}
                   />
+                  {showPasswordErrors.currentPassword && (
+                    <p className="text-red-400 text-xs mt-1">Mot de passe requis</p>
+                  )}
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-white/60 mb-1">Nouveau mot de passe</label>
+                  <label className="block text-sm font-medium text-white/60 mb-1">
+                    Nouveau mot de passe
+                  </label>
                   <input
                     type="password"
                     value={passwordData.newPassword}
                     onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                    className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={`w-full px-4 py-2 bg-white/10 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      showPasswordErrors.newPassword ? 'border-red-500' : 'border-white/20'
+                    }`}
                   />
+                  {showPasswordErrors.newPassword && (
+                    <p className="text-red-400 text-xs mt-1">Nouveau mot de passe requis</p>
+                  )}
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-white/60 mb-1">Confirmer le mot de passe</label>
+                  <label className="block text-sm font-medium text-white/60 mb-1">
+                    Confirmer le mot de passe
+                  </label>
                   <input
                     type="password"
                     value={passwordData.confirmPassword}
                     onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                    className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={`w-full px-4 py-2 bg-white/10 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      showPasswordErrors.confirmPassword ? 'border-red-500' : 'border-white/20'
+                    }`}
                   />
+                  {showPasswordErrors.confirmPassword && (
+                    <p className="text-red-400 text-xs mt-1">Confirmation requise</p>
+                  )}
                 </div>
                 
                 <button
                   onClick={handleChangePassword}
-                  disabled={saving || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
+                  disabled={saving}
                   className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition disabled:opacity-50"
                 >
                   {saving ? 'Modification...' : 'Changer le mot de passe'}
@@ -657,6 +868,8 @@ const PatientProfilePage: React.FC = () => {
                 >
                   <option value="fr">Français</option>
                   <option value="en">English</option>
+                  <option value="es">Español</option>
+                  <option value="de">Deutsch</option>
                 </select>
               </div>
             </div>
@@ -668,43 +881,76 @@ const PatientProfilePage: React.FC = () => {
               </h3>
               
               <div className="space-y-3">
-                <label className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                <label className="flex items-center justify-between p-3 bg-white/5 rounded-lg cursor-pointer">
                   <span className="text-white">Notifications par email</span>
-                  <input
-                    type="checkbox"
-                    checked={preferences.notifications.email}
-                    onChange={(e) => setPreferences({
-                      ...preferences,
-                      notifications: { ...preferences.notifications, email: e.target.checked }
-                    })}
-                    className="w-5 h-5"
-                  />
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={preferences.notifications.email}
+                      onChange={(e) => {
+                        setPreferences({
+                          ...preferences,
+                          notifications: { ...preferences.notifications, email: e.target.checked }
+                        });
+                      }}
+                      className="sr-only"
+                    />
+                    <div className={`w-10 h-6 rounded-full transition-colors ${
+                      preferences.notifications.email ? 'bg-blue-600' : 'bg-gray-600'
+                    }`}>
+                      <div className={`w-4 h-4 bg-white rounded-full transition-transform absolute top-1 ${
+                        preferences.notifications.email ? 'translate-x-5' : 'translate-x-1'
+                      }`}></div>
+                    </div>
+                  </div>
                 </label>
                 
-                <label className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                <label className="flex items-center justify-between p-3 bg-white/5 rounded-lg cursor-pointer">
                   <span className="text-white">Notifications par SMS</span>
-                  <input
-                    type="checkbox"
-                    checked={preferences.notifications.sms}
-                    onChange={(e) => setPreferences({
-                      ...preferences,
-                      notifications: { ...preferences.notifications, sms: e.target.checked }
-                    })}
-                    className="w-5 h-5"
-                  />
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={preferences.notifications.sms}
+                      onChange={(e) => {
+                        setPreferences({
+                          ...preferences,
+                          notifications: { ...preferences.notifications, sms: e.target.checked }
+                        });
+                      }}
+                      className="sr-only"
+                    />
+                    <div className={`w-10 h-6 rounded-full transition-colors ${
+                      preferences.notifications.sms ? 'bg-blue-600' : 'bg-gray-600'
+                    }`}>
+                      <div className={`w-4 h-4 bg-white rounded-full transition-transform absolute top-1 ${
+                        preferences.notifications.sms ? 'translate-x-5' : 'translate-x-1'
+                      }`}></div>
+                    </div>
+                  </div>
                 </label>
                 
-                <label className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                <label className="flex items-center justify-between p-3 bg-white/5 rounded-lg cursor-pointer">
                   <span className="text-white">Notifications push</span>
-                  <input
-                    type="checkbox"
-                    checked={preferences.notifications.push}
-                    onChange={(e) => setPreferences({
-                      ...preferences,
-                      notifications: { ...preferences.notifications, push: e.target.checked }
-                    })}
-                    className="w-5 h-5"
-                  />
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={preferences.notifications.push}
+                      onChange={(e) => {
+                        setPreferences({
+                          ...preferences,
+                          notifications: { ...preferences.notifications, push: e.target.checked }
+                        });
+                      }}
+                      className="sr-only"
+                    />
+                    <div className={`w-10 h-6 rounded-full transition-colors ${
+                      preferences.notifications.push ? 'bg-blue-600' : 'bg-gray-600'
+                    }`}>
+                      <div className={`w-4 h-4 bg-white rounded-full transition-transform absolute top-1 ${
+                        preferences.notifications.push ? 'translate-x-5' : 'translate-x-1'
+                      }`}></div>
+                    </div>
+                  </div>
                 </label>
               </div>
             </div>
@@ -720,39 +966,43 @@ const PatientProfilePage: React.FC = () => {
                   onClick={() => setPreferences({ ...preferences, theme: 'light' })}
                   className={`flex-1 p-4 rounded-lg border-2 transition ${
                     preferences.theme === 'light'
-                      ? 'border-blue-400 bg-white/10'
+                      ? 'border-blue-400 bg-blue-600/20'
                       : 'border-white/10 hover:border-white/20'
                   }`}
                 >
                   <Sun className="w-6 h-6 text-yellow-400 mx-auto mb-2" />
                   <span className="text-white text-sm">Clair</span>
+                  {preferences.theme === 'light' && (
+                    <Check className="w-4 h-4 text-blue-400 mx-auto mt-2" />
+                  )}
                 </button>
                 
                 <button
                   onClick={() => setPreferences({ ...preferences, theme: 'dark' })}
                   className={`flex-1 p-4 rounded-lg border-2 transition ${
                     preferences.theme === 'dark'
-                      ? 'border-blue-400 bg-white/10'
+                      ? 'border-blue-400 bg-blue-600/20'
                       : 'border-white/10 hover:border-white/20'
                   }`}
                 >
                   <Moon className="w-6 h-6 text-indigo-400 mx-auto mb-2" />
                   <span className="text-white text-sm">Sombre</span>
+                  {preferences.theme === 'dark' && (
+                    <Check className="w-4 h-4 text-blue-400 mx-auto mt-2" />
+                  )}
                 </button>
               </div>
+            </div>
 
-              {isEditing && (
-                <div className="mt-4 flex justify-end">
-                  <button
-                    onClick={handleSaveProfile}
-                    disabled={saving}
-                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 transition disabled:opacity-50"
-                  >
-                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    {saving ? 'Sauvegarde...' : 'Enregistrer les préférences'}
-                  </button>
-                </div>
-              )}
+            <div className="flex justify-end">
+              <button
+                onClick={handleSavePreferences}
+                disabled={saving}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 transition disabled:opacity-50"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {saving ? 'Sauvegarde...' : 'Enregistrer les préférences'}
+              </button>
             </div>
           </div>
         )}
