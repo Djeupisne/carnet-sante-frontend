@@ -132,24 +132,27 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
+              
+              {/* Routes patient - Dossier médical et Profil (NOUVELLES ROUTES) */}
               <Route 
-  path="/medical-file" 
-  element={
-    <ProtectedRoute>
-      <MedicalFilePage />
-    </ProtectedRoute>
-  } 
-/>
+                path="/medical-file" 
+                element={
+                  <ProtectedRoute>
+                    <MedicalFilePage />
+                  </ProtectedRoute>
+                } 
+              />
 
-<Route 
-  path="/profile" 
-  element={
-    <ProtectedRoute>
-      <PatientProfilePage />
-    </ProtectedRoute>
-  } 
-/>
-              {/* Routes patient */}
+              <Route 
+                path="/profile" 
+                element={
+                  <ProtectedRoute>
+                    <PatientProfilePage />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              {/* Routes patient - Rendez-vous */}
               <Route 
                 path="/appointments" 
                 element={
@@ -173,46 +176,6 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <AppointmentDetails />
-                  </ProtectedRoute>
-                } 
-              />
-              
-              <Route 
-                path="/medical-file" 
-                element={
-                  <ProtectedRoute>
-                    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                      <div className="bg-white p-8 rounded-lg shadow-sm text-center">
-                        <h1 className="text-2xl font-bold text-gray-900 mb-4">Dossier Médical</h1>
-                        <p className="text-gray-600 mb-4">Page en cours de développement</p>
-                        <button 
-                          onClick={() => window.history.back()}
-                          className="text-blue-600 hover:text-blue-700 font-medium"
-                        >
-                          Retour
-                        </button>
-                      </div>
-                    </div>
-                  </ProtectedRoute>
-                } 
-              />
-              
-              <Route 
-                path="/profile" 
-                element={
-                  <ProtectedRoute>
-                    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                      <div className="bg-white p-8 rounded-lg shadow-sm text-center">
-                        <h1 className="text-2xl font-bold text-gray-900 mb-4">Mon Profil</h1>
-                        <p className="text-gray-600 mb-4">Page en cours de développement</p>
-                        <button 
-                          onClick={() => window.history.back()}
-                          className="text-blue-600 hover:text-blue-700 font-medium"
-                        >
-                          Retour
-                        </button>
-                      </div>
-                    </div>
                   </ProtectedRoute>
                 } 
               />
