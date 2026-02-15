@@ -5,7 +5,7 @@ import { store } from './store/store'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { NotificationProvider } from './context/NotificationContext'
 import { ThemeProvider } from './context/ThemeContext'
-
+import ContactPage from './pages/ContactPage';
 // Pages statiques
 import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
@@ -88,7 +88,7 @@ function App() {
                 <Route path="/pricing" element={<PricingPage />} />
                 <Route path="/faq" element={<FAQPage />} />
                 <Route path="/docs" element={<DocumentationPage />} />
-                
+                <Route path="/contact" element={<ContactPage />} />
                 {/* Dashboard */}
                 <Route 
                   path="/dashboard" 
