@@ -476,27 +476,54 @@ const HomePage: React.FC = () => {
               </div>
             </div>
 
-            {/* Colonne 2 - Produit */}
-            <div>
-              <h4 className="text-lg font-bold mb-4">Produit</h4>
-              <ul className="space-y-3">
-                <li><a href="#" className="text-slate-400 hover:text-white transition font-medium text-sm">Fonctionnalités</a></li>
-                <li><a href="#" className="text-slate-400 hover:text-white transition font-medium text-sm">Tarifs</a></li>
-                <li><a href="#" className="text-slate-400 hover:text-white transition font-medium text-sm">FAQ</a></li>
-                <li><a href="#" className="text-slate-400 hover:text-white transition font-medium text-sm">Documentation</a></li>
-              </ul>
-            </div>
+           {/* Colonne 2 - Produit */}
+<div>
+  <h4 className="text-lg font-bold mb-4">Produit</h4>
+  <ul className="space-y-3">
+    <li>
+      <Link to="/features" className="text-slate-400 hover:text-white transition font-medium text-sm">
+        Fonctionnalités
+      </Link>
+    </li>
+    <li>
+      <Link to="/pricing" className="text-slate-400 hover:text-white transition font-medium text-sm">
+        Tarifs
+      </Link>
+    </li>
+    <li>
+      <Link to="/faq" className="text-slate-400 hover:text-white transition font-medium text-sm">
+        FAQ
+      </Link>
+    </li>
+    <li>
+      <Link to="/docs" className="text-slate-400 hover:text-white transition font-medium text-sm">
+        Documentation
+      </Link>
+    </li>
+  </ul>
+</div>
 
-            {/* Colonne 3 - Légal */}
-            <div>
-              <h4 className="text-lg font-bold mb-4">Légal</h4>
-              <ul className="space-y-3">
-                <li><a href="#" className="text-slate-400 hover:text-white transition font-medium text-sm">Confidentialité</a></li>
-                <li><a href="#" className="text-slate-400 hover:text-white transition font-medium text-sm">Conditions d'utilisation</a></li>
-                <li><a href="#" className="text-slate-400 hover:text-white transition font-medium text-sm">Mentions légales</a></li>
-                <li><a href="#" className="text-slate-400 hover:text-white transition font-medium text-sm">Cookies</a></li>
-              </ul>
-            </div>
+{/* Colonne 3 - Légal */}
+<div>
+  <h4 className="text-lg font-bold mb-4">Légal</h4>
+  <ul className="space-y-3">
+    <li>
+      <Link to="/privacy" className="text-slate-400 hover:text-white transition font-medium text-sm">
+        Confidentialité
+      </Link>
+    </li>
+    <li>
+      <Link to="/terms" className="text-slate-400 hover:text-white transition font-medium text-sm">
+        Conditions d'utilisation
+      </Link>
+    </li>
+    <li>
+      <Link to="/legal" className="text-slate-400 hover:text-white transition font-medium text-sm">
+        Mentions légales
+      </Link>
+    </li>
+  </ul>
+</div>
 
             {/* Colonne 4 - Contact */}
             <div>
