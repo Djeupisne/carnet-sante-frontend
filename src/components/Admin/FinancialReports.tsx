@@ -148,19 +148,21 @@ const FinancialReports: React.FC = () => {
       console.log('📊 Données brutes des médecins:', statsResponse);
       
       if (statsResponse.success) {
-        // Adapter les données si nécessaire
-        const data = Array.isArray(statsResponse.data) ? statsResponse.data : [];
-        setDoctorStats(data);
+        // ✅ Les données sont dans statsResponse.data
+        const doctorData = statsResponse.data || [];
+        setDoctorStats(Array.isArray(doctorData) ? doctorData : []);
       }
 
       // Récupérer les rendez-vous avec paiements
       const appointmentsResponse = await adminService.getAllAppointments({
-        limit: 1000 // Récupérer un maximum
+        limit: 1000
       });
       console.log('📋 Données brutes des rendez-vous:', appointmentsResponse);
       
       if (appointmentsResponse.success) {
-        const transformedPayments = transformAppointmentsToPayments(appointmentsResponse.data);
+        // ✅ Les données sont dans appointmentsResponse.data
+        const appointmentsData = appointmentsResponse.data || [];
+        const transformedPayments = transformAppointmentsToPayments(appointmentsData);
         setPayments(transformedPayments);
         setFilteredPayments(transformedPayments);
       }
