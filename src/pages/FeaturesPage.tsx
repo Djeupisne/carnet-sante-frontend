@@ -9,36 +9,37 @@ import {
   LineChart,
   Shield,
   ArrowLeft,
-  Sparkles,
-  HeartPulse,
   Video,
   Clock,
   FileText,
   Users,
   MessageSquare,
   CreditCard,
-  Award
+  Award,
+  CheckCircle2
 } from 'lucide-react';
 
 const FeaturesPage: React.FC = () => {
   const features = [
     {
-      icon: <Calendar className="w-8 h-8" />,
+      icon: <Calendar className="w-6 h-6" />,
       title: "Gestion des rendez-vous",
-      description: "Prenez, modifiez ou annulez vos rendez-vous en ligne en quelques clics. Recevez des rappels automatiques.",
-      color: "from-blue-500 to-cyan-500",
+      description: "Prenez, modifiez ou annulez vos rendez-vous en ligne en quelques clics.",
+      color: "bg-blue-100",
+      textColor: "text-blue-600",
       details: [
         "Prise de RDV 24h/24",
-        "Rappels SMS et email",
+        "Rappels automatiques",
         "Annulation en ligne",
         "Historique complet"
       ]
     },
     {
-      icon: <Building2 className="w-8 h-8" />,
-      title: "Dossier médical numérique",
-      description: "Accédez à votre dossier médical complet, où que vous soyez. Partagez-le avec vos médecins en toute sécurité.",
-      color: "from-purple-500 to-pink-500",
+      icon: <Building2 className="w-6 h-6" />,
+      title: "Dossier médical",
+      description: "Accédez à votre dossier médical complet, où que vous soyez.",
+      color: "bg-purple-100",
+      textColor: "text-purple-600",
       details: [
         "Documents sécurisés",
         "Partage contrôlé",
@@ -47,10 +48,11 @@ const FeaturesPage: React.FC = () => {
       ]
     },
     {
-      icon: <Bell className="w-8 h-8" />,
+      icon: <Bell className="w-6 h-6" />,
       title: "Rappels intelligents",
-      description: "Recevez des notifications pour vos rendez-vous, prises de médicaments et rappels de suivi médical.",
-      color: "from-emerald-500 to-teal-500",
+      description: "Recevez des notifications pour vos rendez-vous et traitements.",
+      color: "bg-emerald-100",
+      textColor: "text-emerald-600",
       details: [
         "Rappels personnalisés",
         "Notifications push",
@@ -59,10 +61,11 @@ const FeaturesPage: React.FC = () => {
       ]
     },
     {
-      icon: <Video className="w-8 h-8" />,
+      icon: <Video className="w-6 h-6" />,
       title: "Téléconsultation",
-      description: "Consultez vos médecins à distance via notre plateforme de visioconférence sécurisée.",
-      color: "from-orange-500 to-amber-500",
+      description: "Consultez vos médecins à distance en toute sécurité.",
+      color: "bg-orange-100",
+      textColor: "text-orange-600",
       details: [
         "Visioconférence HD",
         "Partage d'écran",
@@ -71,64 +74,61 @@ const FeaturesPage: React.FC = () => {
       ]
     },
     {
-      icon: <Clock className="w-8 h-8" />,
-      title: "Disponibilité 24/7",
-      description: "Accédez à vos informations et prenez des rendez-vous à tout moment, même le week-end.",
-      color: "from-indigo-500 to-blue-500",
+      icon: <Clock className="w-6 h-6" />,
+      title: "Disponible 24/7",
+      description: "Accédez à vos informations à tout moment, partout.",
+      color: "bg-indigo-100",
+      textColor: "text-indigo-600",
       details: [
         "Accès permanent",
         "Support réactif",
-        "Mises à jour en temps réel",
+        "Mises à jour temps réel",
         "Disponible partout"
       ]
     },
     {
-      icon: <Shield className="w-8 h-8" />,
+      icon: <Shield className="w-6 h-6" />,
       title: "Sécurité maximale",
-      description: "Vos données sont protégées par les plus hauts standards de sécurité et de confidentialité.",
-      color: "from-red-500 to-pink-500",
+      description: "Vos données sont protégées par les plus hauts standards.",
+      color: "bg-red-100",
+      textColor: "text-red-600",
       details: [
         "Chiffrement AES-256",
         "Conformité RGPD",
-        "Audit de sécurité",
-        "Double authentification"
+        "Double authentification",
+        "Audit régulier"
       ]
     }
   ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/20">
-      <nav className="glass sticky top-0 z-50 border-b border-white/20 shadow-sm">
+      <nav className="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            <Link to="/" className="flex items-center space-x-3 group">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-emerald-500 rounded-2xl blur-xl opacity-60 group-hover:opacity-100"></div>
-                <div className="relative bg-gradient-to-br from-blue-500 via-cyan-500 to-emerald-500 p-3 rounded-2xl shadow-lg">
-                  <Sparkles className="w-6 h-6 text-white" />
-                </div>
+          <div className="flex justify-between items-center h-16">
+            <Link to="/" className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-emerald-600 rounded-lg flex items-center justify-center">
+                <Stethoscope className="w-4 h-4 text-white" />
               </div>
-              <h1 className="text-2xl font-black bg-gradient-to-r from-blue-600 via-cyan-600 to-emerald-600 bg-clip-text text-transparent">
-                Fonctionnalités
-              </h1>
+              <span className="font-bold text-gray-900">Carnet Santé</span>
             </Link>
             <Link
               to="/"
-              className="flex items-center gap-2 px-4 py-2 text-slate-700 hover:text-blue-600 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors text-sm"
             >
               <ArrowLeft className="w-4 h-4" />
-              Retour à l'accueil
+              Retour
             </Link>
           </div>
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center mb-16">
-          <h1 className="text-5xl md:text-6xl font-black text-slate-900 mb-6">
-            Tout ce dont vous avez besoin
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="text-center mb-12">
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            Fonctionnalités
           </h1>
-          <p className="text-xl text-slate-600 max-w-3xl mx-auto">
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Découvrez toutes les fonctionnalités de notre plateforme pour gérer votre santé en toute simplicité
           </p>
         </div>
@@ -137,36 +137,49 @@ const FeaturesPage: React.FC = () => {
           {features.map((feature, index) => (
             <div
               key={index}
-              className="feature-card group glass rounded-3xl p-8 border border-white/50 hover:shadow-2xl"
+              className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all border border-gray-200 overflow-hidden"
             >
-              <div className={`absolute inset-0 bg-gradient-to-br ${feature.color} opacity-0 group-hover:opacity-5 rounded-3xl transition-opacity duration-500`}></div>
-              
-              <div className="relative mb-6">
-                <div className={`absolute inset-0 bg-gradient-to-br ${feature.color} rounded-2xl blur-xl opacity-20 group-hover:opacity-40 transition-opacity duration-500`}></div>
-                <div className="relative bg-white rounded-2xl p-4 inline-flex shadow-lg">
-                  <div className={`bg-gradient-to-br ${feature.color} bg-clip-text text-transparent`}>
+              <div className="p-6">
+                <div className={`w-12 h-12 ${feature.color} rounded-xl flex items-center justify-center mb-4`}>
+                  <div className={feature.textColor}>
                     {feature.icon}
                   </div>
                 </div>
+
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  {feature.title}
+                </h3>
+                <p className="text-gray-600 text-sm mb-4">
+                  {feature.description}
+                </p>
+
+                <div className="space-y-2">
+                  {feature.details.map((detail, idx) => (
+                    <div key={idx} className="flex items-center gap-2 text-sm text-gray-500">
+                      <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+                      <span>{detail}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-
-              <h3 className="text-xl font-bold text-slate-900 mb-3 group-hover:text-blue-600 transition-colors">
-                {feature.title}
-              </h3>
-              <p className="text-slate-600 leading-relaxed mb-4">
-                {feature.description}
-              </p>
-
-              <ul className="space-y-2 mt-4">
-                {feature.details.map((detail, idx) => (
-                  <li key={idx} className="flex items-center gap-2 text-sm text-slate-500">
-                    <div className={`w-1.5 h-1.5 rounded-full bg-gradient-to-r ${feature.color}`}></div>
-                    {detail}
-                  </li>
-                ))}
-              </ul>
             </div>
           ))}
+        </div>
+
+        {/* Section CTA */}
+        <div className="mt-12 bg-gradient-to-r from-blue-600 to-emerald-600 rounded-2xl p-8 text-center">
+          <h2 className="text-2xl font-bold text-white mb-4">
+            Prêt à commencer ?
+          </h2>
+          <p className="text-white/90 mb-6">
+            Rejoignez des milliers d'utilisateurs satisfaits
+          </p>
+          <Link
+            to="/register"
+            className="inline-flex items-center px-6 py-3 bg-white text-blue-600 rounded-xl font-semibold hover:shadow-lg transition-all"
+          >
+            Créer un compte gratuit
+          </Link>
         </div>
       </div>
     </div>
