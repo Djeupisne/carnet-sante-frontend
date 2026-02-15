@@ -207,13 +207,13 @@ const HomePage: React.FC = () => {
 
             {/* Navigation desktop */}
             <div className="hidden md:flex items-center space-x-8">
-              <a href="#features" className="text-slate-700 hover:text-blue-600 transition-colors font-medium text-sm">
+              <a href="/features" className="text-slate-700 hover:text-blue-600 transition-colors font-medium text-sm">
                 Fonctionnalités
               </a>
               <a href="#stats" className="text-slate-700 hover:text-blue-600 transition-colors font-medium text-sm">
                 Statistiques
               </a>
-              <a href="#contact" className="text-slate-700 hover:text-blue-600 transition-colors font-medium text-sm">
+              <a href="/contact" className="text-slate-700 hover:text-blue-600 transition-colors font-medium text-sm">
                 Contact
               </a>
             </div>
