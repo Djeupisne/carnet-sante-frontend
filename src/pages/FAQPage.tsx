@@ -182,12 +182,13 @@ const FAQPage: React.FC = () => {
         </div>
 
         {/* Contact */}
-        <div className="mt-8 text-center text-sm text-gray-500">
-          Vous ne trouvez pas votre réponse ?{" "}
-          <Link to="/contact" className="text-blue-600 hover:underline">
-            Contactez-nous
-          </Link>
-        </div>
+<div className="mt-8 text-center text-sm text-white">
+  Vous ne trouvez pas votre réponse ?{" "}
+  <Link to="/contact" className="text-yellow-300 hover:underline">
+    Contactez-nous
+  </Link>
+</div>
+
       </div>
     </div>
   );
