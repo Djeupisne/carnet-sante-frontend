@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
-import { userService } from '../services/userService';
+import { userService, UserPreferences } from '../services/userService';
 import { 
   User, 
   Mail, 
@@ -41,16 +41,6 @@ interface Address {
   city: string;
   postalCode: string;
   country: string;
-}
-
-interface UserPreferences {
-  language: string;
-  theme: 'light' | 'dark';
-  notifications: {
-    email: boolean;
-    sms: boolean;
-    push: boolean;
-  };
 }
 
 const PatientProfilePage: React.FC = () => {
@@ -114,23 +104,60 @@ const PatientProfilePage: React.FC = () => {
     }
   }, [user?.id]);
 
-  // Appliquer le thème
+  // Appliquer le thème et la langue
   useEffect(() => {
+    applyTheme(preferences.theme);
+    applyLanguage(preferences.language);
+  }, [preferences.theme, preferences.language]);
+
+  const applyTheme = (theme: 'light' | 'dark') => {
     const root = document.documentElement;
-    if (preferences.theme === 'light') {
+    
+    if (theme === 'light') {
+      // Mode clair
+      root.style.setProperty('--bg-primary', '#f9fafb');
+      root.style.setProperty('--bg-secondary', '#ffffff');
+      root.style.setProperty('--text-primary', '#111827');
+      root.style.setProperty('--text-secondary', '#6b7280');
+      root.style.setProperty('--border-color', '#e5e7eb');
+      
+      // Ajouter une classe pour le mode clair
       root.classList.remove('dark');
       root.classList.add('light');
-      // Changer les variables CSS pour le mode clair
-      root.style.setProperty('--bg-primary', '#f3f4f6');
-      root.style.setProperty('--text-primary', '#111827');
+      
+      // Changer la couleur de fond du body
+      document.body.className = 'bg-gray-50';
     } else {
+      // Mode sombre
+      root.style.setProperty('--bg-primary', '#0f172a');
+      root.style.setProperty('--bg-secondary', '#1e293b');
+      root.style.setProperty('--text-primary', '#ffffff');
+      root.style.setProperty('--text-secondary', '#94a3b8');
+      root.style.setProperty('--border-color', '#334155');
+      
+      // Ajouter une classe pour le mode sombre
       root.classList.remove('light');
       root.classList.add('dark');
-      // Rétablir les variables CSS pour le mode sombre
-      root.style.setProperty('--bg-primary', '#0f172a');
-      root.style.setProperty('--text-primary', '#ffffff');
+      
+      // Changer la couleur de fond du body
+      document.body.className = 'bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900';
     }
-  }, [preferences.theme]);
+  };
+
+  const applyLanguage = (language: string) => {
+    // Stocker la langue dans localStorage
+    localStorage.setItem('preferred-language', language);
+    
+    // Changer la direction du texte si nécessaire
+    if (language === 'ar') {
+      document.documentElement.dir = 'rtl';
+    } else {
+      document.documentElement.dir = 'ltr';
+    }
+    
+    // Vous pouvez également changer les textes ici si vous avez un système d'internationalisation
+    console.log('🌐 Langue changée:', language);
+  };
 
   const fetchUserData = async () => {
     try {
@@ -177,13 +204,11 @@ const PatientProfilePage: React.FC = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Vérifier le type de fichier
     if (!file.type.startsWith('image/')) {
       showNotification('❌ Veuillez sélectionner une image', 'error');
       return;
     }
 
-    // Vérifier la taille (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       showNotification('❌ L\'image ne doit pas dépasser 5MB', 'error');
       return;
@@ -192,16 +217,13 @@ const PatientProfilePage: React.FC = () => {
     try {
       setUploadingPhoto(true);
       
-      // Créer un FormData pour l'envoi
       const formData = new FormData();
       formData.append('profilePicture', file);
 
-      // Appel API pour uploader la photo
       const response = await userService.updateProfilePicture(formData);
       
       if (response.success) {
         showNotification('✅ Photo de profil mise à jour', 'success');
-        // Mettre à jour l'utilisateur dans le contexte
         if (user) {
           updateUser({
             ...user,
@@ -235,7 +257,6 @@ const PatientProfilePage: React.FC = () => {
       if (response.success) {
         showNotification('✅ Profil mis à jour avec succès', 'success');
         setIsEditing(false);
-        // Mettre à jour le contexte
         if (user) {
           updateUser({
             ...user,
@@ -257,11 +278,23 @@ const PatientProfilePage: React.FC = () => {
     try {
       setSaving(true);
       
-      const response = await userService.updatePreferences(preferences);
+      // Sauvegarde locale immédiate
+      localStorage.setItem('preferences', JSON.stringify(preferences));
       
-      if (response.success) {
-        showNotification('✅ Préférences mises à jour', 'success');
+      // Appliquer les changements immédiatement
+      applyTheme(preferences.theme);
+      applyLanguage(preferences.language);
+      
+      showNotification('✅ Préférences mises à jour', 'success');
+      
+      // Tentative de sauvegarde sur le serveur (non bloquante)
+      try {
+        await userService.updatePreferences(preferences);
+        console.log('✅ Préférences sauvegardées sur le serveur');
+      } catch (serverError) {
+        console.warn('⚠️ Sauvegarde serveur échouée, mais changements appliqués localement');
       }
+      
     } catch (error) {
       console.error('❌ Erreur sauvegarde préférences:', error);
       showNotification('❌ Erreur lors de la sauvegarde', 'error');
@@ -271,14 +304,12 @@ const PatientProfilePage: React.FC = () => {
   };
 
   const handleChangePassword = async () => {
-    // Réinitialiser les erreurs
     setShowPasswordErrors({
       currentPassword: false,
       newPassword: false,
       confirmPassword: false
     });
 
-    // Validations
     let hasError = false;
     const errors = { ...showPasswordErrors };
 
@@ -380,30 +411,42 @@ const PatientProfilePage: React.FC = () => {
 
   if (!user || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen transition-colors duration-300"
+         style={{ 
+           backgroundColor: preferences.theme === 'light' ? '#f9fafb' : '#0f172a',
+           color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+         }}>
       {/* Header */}
-      <header className="glass-nav sticky top-0 z-50">
+      <header className="sticky top-0 z-50 backdrop-blur-md border-b transition-colors duration-300"
+              style={{ 
+                backgroundColor: preferences.theme === 'light' ? 'rgba(255,255,255,0.9)' : 'rgba(15,23,42,0.9)',
+                borderColor: preferences.theme === 'light' ? '#e5e7eb' : '#334155'
+              }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <button
                 onClick={() => navigate('/dashboard')}
-                className="mr-4 p-2 bg-white/10 hover:bg-white/20 rounded-lg transition"
+                className="mr-4 p-2 rounded-lg transition-colors"
+                style={{ 
+                  backgroundColor: preferences.theme === 'light' ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.1)',
+                  color: preferences.theme === 'light' ? '#4b5563' : '#ffffff'
+                }}
               >
-                <ArrowLeft className="w-5 h-5 text-white" />
+                <ArrowLeft className="w-5 h-5" />
               </button>
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
                   <User className="w-5 h-5 text-white" />
                 </div>
-                <h1 className="text-xl font-black gradient-text text-white">Mon Profil</h1>
+                <h1 className="text-xl font-black gradient-text">Mon Profil</h1>
               </div>
             </div>
           </div>
@@ -411,13 +454,17 @@ const PatientProfilePage: React.FC = () => {
       </header>
 
       {/* Navigation tabs */}
-      <div className="border-b border-white/10 bg-white/5">
+      <div className="border-b transition-colors duration-300"
+           style={{ 
+             borderColor: preferences.theme === 'light' ? '#e5e7eb' : '#334155',
+             backgroundColor: preferences.theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)'
+           }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="flex space-x-8 overflow-x-auto">
             {[
-              { id: 'profile', label: 'Profil', icon: User },
-              { id: 'security', label: 'Sécurité', icon: Lock },
-              { id: 'preferences', label: 'Préférences', icon: Bell }
+              { id: 'profile', label: preferences.language === 'fr' ? 'Profil' : 'Profile', icon: User },
+              { id: 'security', label: preferences.language === 'fr' ? 'Sécurité' : 'Security', icon: Lock },
+              { id: 'preferences', label: preferences.language === 'fr' ? 'Préférences' : 'Preferences', icon: Bell }
             ].map((tab) => {
               const Icon = tab.icon;
               return (
@@ -427,7 +474,7 @@ const PatientProfilePage: React.FC = () => {
                   className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 whitespace-nowrap transition ${
                     activeTab === tab.id
                       ? 'border-blue-400 text-blue-400'
-                      : 'border-transparent text-white/60 hover:text-white/80'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
                   <Icon className="w-4 h-4" />
@@ -442,7 +489,12 @@ const PatientProfilePage: React.FC = () => {
       {/* Contenu principal */}
       <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         {/* Photo de profil */}
-        <div className="futuristic-card p-8 mb-6 text-center relative">
+        <div className="rounded-xl p-8 mb-6 text-center relative transition-colors duration-300"
+             style={{ 
+               backgroundColor: preferences.theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
+               borderColor: preferences.theme === 'light' ? '#e5e7eb' : '#334155',
+               borderWidth: '1px'
+             }}>
           <div className="relative inline-block">
             <div className="w-32 h-32 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-4xl font-bold text-white mx-auto">
               {user.profilePicture ? (
@@ -477,10 +529,10 @@ const PatientProfilePage: React.FC = () => {
               </div>
             )}
           </div>
-          <h2 className="text-2xl font-bold text-white mt-4">
+          <h2 className="text-2xl font-bold mt-4" style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>
             {user.firstName} {user.lastName}
           </h2>
-          <p className="text-white/60">Patient • {user.uniqueCode}</p>
+          <p className="text-gray-500">Patient • {user.uniqueCode}</p>
           
           {!isEditing && (
             <button
@@ -488,7 +540,7 @@ const PatientProfilePage: React.FC = () => {
               className="absolute top-8 right-8 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 transition"
             >
               <Edit className="w-4 h-4" />
-              Modifier
+              {preferences.language === 'fr' ? 'Modifier' : 'Edit'}
             </button>
           )}
         </div>
@@ -496,101 +548,149 @@ const PatientProfilePage: React.FC = () => {
         {activeTab === 'profile' && (
           <div className="space-y-6">
             {/* Informations personnelles */}
-            <div className="futuristic-card p-6">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <div className="rounded-xl p-6 transition-colors duration-300"
+                 style={{ 
+                   backgroundColor: preferences.theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
+                   borderColor: preferences.theme === 'light' ? '#e5e7eb' : '#334155',
+                   borderWidth: '1px'
+                 }}>
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <User className="w-5 h-5 text-blue-400" />
-                Informations personnelles
+                {preferences.language === 'fr' ? 'Informations personnelles' : 'Personal Information'}
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-white/60 mb-1">Prénom</label>
+                  <label className="block text-sm font-medium mb-1"
+                         style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                    {preferences.language === 'fr' ? 'Prénom' : 'First Name'}
+                  </label>
                   {isEditing ? (
                     <input
                       type="text"
                       value={formData.firstName}
                       onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{ 
+                        backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
+                        borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
+                        color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                      }}
                     />
                   ) : (
-                    <p className="text-white">{formData.firstName}</p>
+                    <p style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>{formData.firstName}</p>
                   )}
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-white/60 mb-1">Nom</label>
+                  <label className="block text-sm font-medium mb-1"
+                         style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                    {preferences.language === 'fr' ? 'Nom' : 'Last Name'}
+                  </label>
                   {isEditing ? (
                     <input
                       type="text"
                       value={formData.lastName}
                       onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{ 
+                        backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
+                        borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
+                        color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                      }}
                     />
                   ) : (
-                    <p className="text-white">{formData.lastName}</p>
+                    <p style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>{formData.lastName}</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-white/60 mb-1">Email</label>
-                  <p className="text-white flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-white/40" />
+                  <label className="block text-sm font-medium mb-1"
+                         style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                    Email
+                  </label>
+                  <p className="flex items-center gap-2" style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>
+                    <Mail className="w-4 h-4 text-gray-400" />
                     {formData.email}
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-white/60 mb-1">Téléphone</label>
+                  <label className="block text-sm font-medium mb-1"
+                         style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                    {preferences.language === 'fr' ? 'Téléphone' : 'Phone'}
+                  </label>
                   {isEditing ? (
                     <input
                       type="tel"
                       value={formData.phoneNumber}
                       onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{ 
+                        backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
+                        borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
+                        color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                      }}
                     />
                   ) : (
-                    <p className="text-white flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-white/40" />
+                    <p className="flex items-center gap-2" style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>
+                      <Phone className="w-4 h-4 text-gray-400" />
                       {formData.phoneNumber || 'Non renseigné'}
                     </p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-white/60 mb-1">Date de naissance</label>
+                  <label className="block text-sm font-medium mb-1"
+                         style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                    {preferences.language === 'fr' ? 'Date de naissance' : 'Date of Birth'}
+                  </label>
                   {isEditing ? (
                     <input
                       type="date"
                       value={formData.dateOfBirth}
                       onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{ 
+                        backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
+                        borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
+                        color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                      }}
                     />
                   ) : (
-                    <p className="text-white flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-white/40" />
+                    <p className="flex items-center gap-2" style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>
+                      <Calendar className="w-4 h-4 text-gray-400" />
                       {formatDate(formData.dateOfBirth)}
                     </p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-white/60 mb-1">Sexe</label>
+                  <label className="block text-sm font-medium mb-1"
+                         style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                    {preferences.language === 'fr' ? 'Sexe' : 'Gender'}
+                  </label>
                   {isEditing ? (
                     <select
                       value={formData.gender}
                       onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{ 
+                        backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
+                        borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
+                        color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                      }}
                     >
-                      <option value="">Non spécifié</option>
-                      <option value="male">Masculin</option>
-                      <option value="female">Féminin</option>
-                      <option value="other">Autre</option>
+                      <option value="">{preferences.language === 'fr' ? 'Non spécifié' : 'Not specified'}</option>
+                      <option value="male">{preferences.language === 'fr' ? 'Masculin' : 'Male'}</option>
+                      <option value="female">{preferences.language === 'fr' ? 'Féminin' : 'Female'}</option>
+                      <option value="other">{preferences.language === 'fr' ? 'Autre' : 'Other'}</option>
                     </select>
                   ) : (
-                    <p className="text-white">
-                      {formData.gender === 'male' ? 'Masculin' : 
-                       formData.gender === 'female' ? 'Féminin' : 
-                       formData.gender || 'Non spécifié'}
+                    <p style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>
+                      {formData.gender === 'male' ? (preferences.language === 'fr' ? 'Masculin' : 'Male') : 
+                       formData.gender === 'female' ? (preferences.language === 'fr' ? 'Féminin' : 'Female') : 
+                       formData.gender || (preferences.language === 'fr' ? 'Non spécifié' : 'Not specified')}
                     </p>
                   )}
                 </div>
@@ -598,15 +698,23 @@ const PatientProfilePage: React.FC = () => {
             </div>
 
             {/* Adresse */}
-            <div className="futuristic-card p-6">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <div className="rounded-xl p-6 transition-colors duration-300"
+                 style={{ 
+                   backgroundColor: preferences.theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
+                   borderColor: preferences.theme === 'light' ? '#e5e7eb' : '#334155',
+                   borderWidth: '1px'
+                 }}>
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-purple-400" />
-                Adresse
+                {preferences.language === 'fr' ? 'Adresse' : 'Address'}
               </h3>
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-white/60 mb-1">Rue</label>
+                  <label className="block text-sm font-medium mb-1"
+                         style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                    {preferences.language === 'fr' ? 'Rue' : 'Street'}
+                  </label>
                   {isEditing ? (
                     <input
                       type="text"
@@ -615,16 +723,24 @@ const PatientProfilePage: React.FC = () => {
                         ...formData,
                         address: { ...formData.address, street: e.target.value }
                       })}
-                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{ 
+                        backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
+                        borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
+                        color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                      }}
                     />
                   ) : (
-                    <p className="text-white">{formData.address.street || 'Non renseigné'}</p>
+                    <p style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>{formData.address.street || 'Non renseigné'}</p>
                   )}
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-white/60 mb-1">Ville</label>
+                    <label className="block text-sm font-medium mb-1"
+                           style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                      {preferences.language === 'fr' ? 'Ville' : 'City'}
+                    </label>
                     {isEditing ? (
                       <input
                         type="text"
@@ -633,15 +749,23 @@ const PatientProfilePage: React.FC = () => {
                           ...formData,
                           address: { ...formData.address, city: e.target.value }
                         })}
-                        className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        style={{ 
+                          backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
+                          borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
+                          color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                        }}
                       />
                     ) : (
-                      <p className="text-white">{formData.address.city || 'Non renseigné'}</p>
+                      <p style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>{formData.address.city || 'Non renseigné'}</p>
                     )}
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-white/60 mb-1">Code postal</label>
+                    <label className="block text-sm font-medium mb-1"
+                           style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                      {preferences.language === 'fr' ? 'Code postal' : 'Postal Code'}
+                    </label>
                     {isEditing ? (
                       <input
                         type="text"
@@ -650,10 +774,15 @@ const PatientProfilePage: React.FC = () => {
                           ...formData,
                           address: { ...formData.address, postalCode: e.target.value }
                         })}
-                        className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        style={{ 
+                          backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
+                          borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
+                          color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                        }}
                       />
                     ) : (
-                      <p className="text-white">{formData.address.postalCode || 'Non renseigné'}</p>
+                      <p style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>{formData.address.postalCode || 'Non renseigné'}</p>
                     )}
                   </div>
                 </div>
@@ -661,21 +790,34 @@ const PatientProfilePage: React.FC = () => {
             </div>
 
             {/* Informations médicales */}
-            <div className="futuristic-card p-6">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <div className="rounded-xl p-6 transition-colors duration-300"
+                 style={{ 
+                   backgroundColor: preferences.theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
+                   borderColor: preferences.theme === 'light' ? '#e5e7eb' : '#334155',
+                   borderWidth: '1px'
+                 }}>
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Heart className="w-5 h-5 text-red-400" />
-                Informations médicales
+                {preferences.language === 'fr' ? 'Informations médicales' : 'Medical Information'}
               </h3>
               
               <div>
-                <label className="block text-sm font-medium text-white/60 mb-1">Groupe sanguin</label>
+                <label className="block text-sm font-medium mb-1"
+                       style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                  {preferences.language === 'fr' ? 'Groupe sanguin' : 'Blood Type'}
+                </label>
                 {isEditing ? (
                   <select
                     value={formData.bloodType}
                     onChange={(e) => setFormData({ ...formData, bloodType: e.target.value })}
-                    className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={{ 
+                      backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
+                      borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
+                      color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                    }}
                   >
-                    <option value="">Non spécifié</option>
+                    <option value="">{preferences.language === 'fr' ? 'Non spécifié' : 'Not specified'}</option>
                     <option value="A+">A+</option>
                     <option value="A-">A-</option>
                     <option value="B+">B+</option>
@@ -686,24 +828,32 @@ const PatientProfilePage: React.FC = () => {
                     <option value="O-">O-</option>
                   </select>
                 ) : (
-                  <p className="text-white flex items-center gap-2">
+                  <p className="flex items-center gap-2" style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>
                     <Droplets className="w-4 h-4 text-red-400" />
-                    {getBloodTypeLabel(formData.bloodType) || 'Non renseigné'}
+                    {getBloodTypeLabel(formData.bloodType) || (preferences.language === 'fr' ? 'Non renseigné' : 'Not specified')}
                   </p>
                 )}
               </div>
             </div>
 
             {/* Contact d'urgence */}
-            <div className="futuristic-card p-6">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <div className="rounded-xl p-6 transition-colors duration-300"
+                 style={{ 
+                   backgroundColor: preferences.theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
+                   borderColor: preferences.theme === 'light' ? '#e5e7eb' : '#334155',
+                   borderWidth: '1px'
+                 }}>
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Shield className="w-5 h-5 text-orange-400" />
-                Contact d'urgence
+                {preferences.language === 'fr' ? 'Contact d\'urgence' : 'Emergency Contact'}
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-white/60 mb-1">Nom</label>
+                  <label className="block text-sm font-medium mb-1"
+                         style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                    {preferences.language === 'fr' ? 'Nom' : 'Name'}
+                  </label>
                   {isEditing ? (
                     <input
                       type="text"
@@ -712,15 +862,23 @@ const PatientProfilePage: React.FC = () => {
                         ...formData,
                         emergencyContact: { ...formData.emergencyContact, name: e.target.value }
                       })}
-                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{ 
+                        backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
+                        borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
+                        color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                      }}
                     />
                   ) : (
-                    <p className="text-white">{formData.emergencyContact.name || 'Non renseigné'}</p>
+                    <p style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>{formData.emergencyContact.name || 'Non renseigné'}</p>
                   )}
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-white/60 mb-1">Téléphone</label>
+                  <label className="block text-sm font-medium mb-1"
+                         style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                    {preferences.language === 'fr' ? 'Téléphone' : 'Phone'}
+                  </label>
                   {isEditing ? (
                     <input
                       type="tel"
@@ -729,15 +887,23 @@ const PatientProfilePage: React.FC = () => {
                         ...formData,
                         emergencyContact: { ...formData.emergencyContact, phone: e.target.value }
                       })}
-                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{ 
+                        backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
+                        borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
+                        color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                      }}
                     />
                   ) : (
-                    <p className="text-white">{formData.emergencyContact.phone || 'Non renseigné'}</p>
+                    <p style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>{formData.emergencyContact.phone || 'Non renseigné'}</p>
                   )}
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-white/60 mb-1">Lien de parenté</label>
+                  <label className="block text-sm font-medium mb-1"
+                         style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                    {preferences.language === 'fr' ? 'Lien de parenté' : 'Relationship'}
+                  </label>
                   {isEditing ? (
                     <input
                       type="text"
@@ -746,10 +912,15 @@ const PatientProfilePage: React.FC = () => {
                         ...formData,
                         emergencyContact: { ...formData.emergencyContact, relationship: e.target.value }
                       })}
-                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{ 
+                        backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
+                        borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
+                        color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                      }}
                     />
                   ) : (
-                    <p className="text-white">{formData.emergencyContact.relationship || 'Non renseigné'}</p>
+                    <p style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>{formData.emergencyContact.relationship || 'Non renseigné'}</p>
                   )}
                 </div>
               </div>
@@ -761,10 +932,10 @@ const PatientProfilePage: React.FC = () => {
                 <button
                   onClick={handleCancel}
                   disabled={saving}
-                  className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg flex items-center gap-2 transition disabled:opacity-50"
+                  className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg flex items-center gap-2 transition disabled:opacity-50"
                 >
                   <X className="w-4 h-4" />
-                  Annuler
+                  {preferences.language === 'fr' ? 'Annuler' : 'Cancel'}
                 </button>
                 <button
                   onClick={handleSaveProfile}
@@ -772,7 +943,7 @@ const PatientProfilePage: React.FC = () => {
                   className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 transition disabled:opacity-50"
                 >
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  {saving ? 'Sauvegarde...' : 'Enregistrer'}
+                  {saving ? (preferences.language === 'fr' ? 'Sauvegarde...' : 'Saving...') : (preferences.language === 'fr' ? 'Enregistrer' : 'Save')}
                 </button>
               </div>
             )}
@@ -781,61 +952,90 @@ const PatientProfilePage: React.FC = () => {
 
         {activeTab === 'security' && (
           <div className="space-y-6">
-            <div className="futuristic-card p-6">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <div className="rounded-xl p-6 transition-colors duration-300"
+                 style={{ 
+                   backgroundColor: preferences.theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
+                   borderColor: preferences.theme === 'light' ? '#e5e7eb' : '#334155',
+                   borderWidth: '1px'
+                 }}>
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Lock className="w-5 h-5 text-blue-400" />
-                Changer le mot de passe
+                {preferences.language === 'fr' ? 'Changer le mot de passe' : 'Change Password'}
               </h3>
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-white/60 mb-1">
-                    Mot de passe actuel
+                  <label className="block text-sm font-medium mb-1"
+                         style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                    {preferences.language === 'fr' ? 'Mot de passe actuel' : 'Current Password'}
                   </label>
                   <input
                     type="password"
                     value={passwordData.currentPassword}
                     onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                    className={`w-full px-4 py-2 bg-white/10 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      showPasswordErrors.currentPassword ? 'border-red-500' : 'border-white/20'
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      showPasswordErrors.currentPassword ? 'border-red-500' : ''
                     }`}
+                    style={{ 
+                      backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
+                      borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
+                      color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                    }}
                   />
                   {showPasswordErrors.currentPassword && (
-                    <p className="text-red-400 text-xs mt-1">Mot de passe requis</p>
+                    <p className="text-red-400 text-xs mt-1">
+                      {preferences.language === 'fr' ? 'Mot de passe requis' : 'Password required'}
+                    </p>
                   )}
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-white/60 mb-1">
-                    Nouveau mot de passe
+                  <label className="block text-sm font-medium mb-1"
+                         style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                    {preferences.language === 'fr' ? 'Nouveau mot de passe' : 'New Password'}
                   </label>
                   <input
                     type="password"
                     value={passwordData.newPassword}
                     onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                    className={`w-full px-4 py-2 bg-white/10 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      showPasswordErrors.newPassword ? 'border-red-500' : 'border-white/20'
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      showPasswordErrors.newPassword ? 'border-red-500' : ''
                     }`}
+                    style={{ 
+                      backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
+                      borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
+                      color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                    }}
                   />
                   {showPasswordErrors.newPassword && (
-                    <p className="text-red-400 text-xs mt-1">Nouveau mot de passe requis</p>
+                    <p className="text-red-400 text-xs mt-1">
+                      {preferences.language === 'fr' ? 'Nouveau mot de passe requis' : 'New password required'}
+                    </p>
                   )}
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-white/60 mb-1">
-                    Confirmer le mot de passe
+                  <label className="block text-sm font-medium mb-1"
+                         style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                    {preferences.language === 'fr' ? 'Confirmer le mot de passe' : 'Confirm Password'}
                   </label>
                   <input
                     type="password"
                     value={passwordData.confirmPassword}
                     onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                    className={`w-full px-4 py-2 bg-white/10 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      showPasswordErrors.confirmPassword ? 'border-red-500' : 'border-white/20'
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      showPasswordErrors.confirmPassword ? 'border-red-500' : ''
                     }`}
+                    style={{ 
+                      backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
+                      borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
+                      color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                    }}
                   />
                   {showPasswordErrors.confirmPassword && (
-                    <p className="text-red-400 text-xs mt-1">Confirmation requise</p>
+                    <p className="text-red-400 text-xs mt-1">
+                      {preferences.language === 'fr' ? 'Confirmation requise' : 'Confirmation required'}
+                    </p>
                   )}
                 </div>
                 
@@ -844,7 +1044,7 @@ const PatientProfilePage: React.FC = () => {
                   disabled={saving}
                   className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition disabled:opacity-50"
                 >
-                  {saving ? 'Modification...' : 'Changer le mot de passe'}
+                  {saving ? (preferences.language === 'fr' ? 'Modification...' : 'Changing...') : (preferences.language === 'fr' ? 'Changer le mot de passe' : 'Change Password')}
                 </button>
               </div>
             </div>
@@ -853,18 +1053,32 @@ const PatientProfilePage: React.FC = () => {
 
         {activeTab === 'preferences' && (
           <div className="space-y-6">
-            <div className="futuristic-card p-6">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            {/* Langue */}
+            <div className="rounded-xl p-6 transition-colors duration-300"
+                 style={{ 
+                   backgroundColor: preferences.theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
+                   borderColor: preferences.theme === 'light' ? '#e5e7eb' : '#334155',
+                   borderWidth: '1px'
+                 }}>
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Globe className="w-5 h-5 text-purple-400" />
-                Langue et région
+                {preferences.language === 'fr' ? 'Langue' : 'Language'}
               </h3>
               
               <div>
-                <label className="block text-sm font-medium text-white/60 mb-1">Langue</label>
                 <select
                   value={preferences.language}
-                  onChange={(e) => setPreferences({ ...preferences, language: e.target.value })}
-                  className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => {
+                    const newLang = e.target.value;
+                    setPreferences({ ...preferences, language: newLang });
+                    applyLanguage(newLang);
+                  }}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  style={{ 
+                    backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
+                    borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
+                    color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                  }}
                 >
                   <option value="fr">Français</option>
                   <option value="en">English</option>
@@ -874,15 +1088,24 @@ const PatientProfilePage: React.FC = () => {
               </div>
             </div>
 
-            <div className="futuristic-card p-6">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            {/* Notifications */}
+            <div className="rounded-xl p-6 transition-colors duration-300"
+                 style={{ 
+                   backgroundColor: preferences.theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
+                   borderColor: preferences.theme === 'light' ? '#e5e7eb' : '#334155',
+                   borderWidth: '1px'
+                 }}>
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Bell className="w-5 h-5 text-yellow-400" />
-                Notifications
+                {preferences.language === 'fr' ? 'Notifications' : 'Notifications'}
               </h3>
               
               <div className="space-y-3">
-                <label className="flex items-center justify-between p-3 bg-white/5 rounded-lg cursor-pointer">
-                  <span className="text-white">Notifications par email</span>
+                <label className="flex items-center justify-between p-3 rounded-lg cursor-pointer"
+                       style={{ backgroundColor: preferences.theme === 'light' ? '#f9fafb' : 'rgba(255,255,255,0.05)' }}>
+                  <span style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>
+                    {preferences.language === 'fr' ? 'Notifications par email' : 'Email Notifications'}
+                  </span>
                   <div className="relative">
                     <input
                       type="checkbox"
@@ -905,8 +1128,11 @@ const PatientProfilePage: React.FC = () => {
                   </div>
                 </label>
                 
-                <label className="flex items-center justify-between p-3 bg-white/5 rounded-lg cursor-pointer">
-                  <span className="text-white">Notifications par SMS</span>
+                <label className="flex items-center justify-between p-3 rounded-lg cursor-pointer"
+                       style={{ backgroundColor: preferences.theme === 'light' ? '#f9fafb' : 'rgba(255,255,255,0.05)' }}>
+                  <span style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>
+                    {preferences.language === 'fr' ? 'Notifications par SMS' : 'SMS Notifications'}
+                  </span>
                   <div className="relative">
                     <input
                       type="checkbox"
@@ -929,8 +1155,11 @@ const PatientProfilePage: React.FC = () => {
                   </div>
                 </label>
                 
-                <label className="flex items-center justify-between p-3 bg-white/5 rounded-lg cursor-pointer">
-                  <span className="text-white">Notifications push</span>
+                <label className="flex items-center justify-between p-3 rounded-lg cursor-pointer"
+                       style={{ backgroundColor: preferences.theme === 'light' ? '#f9fafb' : 'rgba(255,255,255,0.05)' }}>
+                  <span style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>
+                    {preferences.language === 'fr' ? 'Notifications push' : 'Push Notifications'}
+                  </span>
                   <div className="relative">
                     <input
                       type="checkbox"
@@ -955,38 +1184,60 @@ const PatientProfilePage: React.FC = () => {
               </div>
             </div>
 
-            <div className="futuristic-card p-6">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            {/* Thème */}
+            <div className="rounded-xl p-6 transition-colors duration-300"
+                 style={{ 
+                   backgroundColor: preferences.theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
+                   borderColor: preferences.theme === 'light' ? '#e5e7eb' : '#334155',
+                   borderWidth: '1px'
+                 }}>
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Moon className="w-5 h-5 text-indigo-400" />
-                Thème
+                {preferences.language === 'fr' ? 'Thème' : 'Theme'}
               </h3>
               
               <div className="flex gap-3">
                 <button
-                  onClick={() => setPreferences({ ...preferences, theme: 'light' })}
+                  onClick={() => {
+                    setPreferences({ ...preferences, theme: 'light' });
+                    applyTheme('light');
+                  }}
                   className={`flex-1 p-4 rounded-lg border-2 transition ${
                     preferences.theme === 'light'
                       ? 'border-blue-400 bg-blue-600/20'
-                      : 'border-white/10 hover:border-white/20'
+                      : 'border-transparent hover:border-gray-300'
                   }`}
+                  style={{ 
+                    backgroundColor: preferences.theme === 'light' ? 'rgba(37,99,235,0.1)' : 'transparent'
+                  }}
                 >
                   <Sun className="w-6 h-6 text-yellow-400 mx-auto mb-2" />
-                  <span className="text-white text-sm">Clair</span>
+                  <span style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>
+                    {preferences.language === 'fr' ? 'Clair' : 'Light'}
+                  </span>
                   {preferences.theme === 'light' && (
                     <Check className="w-4 h-4 text-blue-400 mx-auto mt-2" />
                   )}
                 </button>
                 
                 <button
-                  onClick={() => setPreferences({ ...preferences, theme: 'dark' })}
+                  onClick={() => {
+                    setPreferences({ ...preferences, theme: 'dark' });
+                    applyTheme('dark');
+                  }}
                   className={`flex-1 p-4 rounded-lg border-2 transition ${
                     preferences.theme === 'dark'
                       ? 'border-blue-400 bg-blue-600/20'
-                      : 'border-white/10 hover:border-white/20'
+                      : 'border-transparent hover:border-gray-600'
                   }`}
+                  style={{ 
+                    backgroundColor: preferences.theme === 'dark' ? 'rgba(37,99,235,0.1)' : 'transparent'
+                  }}
                 >
                   <Moon className="w-6 h-6 text-indigo-400 mx-auto mb-2" />
-                  <span className="text-white text-sm">Sombre</span>
+                  <span style={{ color: preferences.theme === 'dark' ? '#ffffff' : '#111827' }}>
+                    {preferences.language === 'fr' ? 'Sombre' : 'Dark'}
+                  </span>
                   {preferences.theme === 'dark' && (
                     <Check className="w-4 h-4 text-blue-400 mx-auto mt-2" />
                   )}
@@ -994,6 +1245,7 @@ const PatientProfilePage: React.FC = () => {
               </div>
             </div>
 
+            {/* Bouton sauvegarder préférences */}
             <div className="flex justify-end">
               <button
                 onClick={handleSavePreferences}
@@ -1001,7 +1253,7 @@ const PatientProfilePage: React.FC = () => {
                 className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 transition disabled:opacity-50"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                {saving ? 'Sauvegarde...' : 'Enregistrer les préférences'}
+                {saving ? (preferences.language === 'fr' ? 'Sauvegarde...' : 'Saving...') : (preferences.language === 'fr' ? 'Enregistrer les préférences' : 'Save Preferences')}
               </button>
             </div>
           </div>
