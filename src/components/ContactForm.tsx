@@ -18,6 +18,20 @@ interface ContactFormProps {
 const ContactForm: React.FC<ContactFormProps> = ({ className = '' }) => {
   const [state, handleSubmit] = useForm("mldbeodj");
 
+  // État local pour gérer les valeurs du formulaire (optionnel mais recommandé)
+  const [formValues, setFormValues] = React.useState({
+    name: '',
+    email: '',
+    phone: '',
+    subject: '',
+    message: ''
+  });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormValues(prev => ({ ...prev, [name]: value }));
+  };
+
   if (state.succeeded) {
     return (
       <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-10 text-center animate-fade-in">
@@ -74,8 +88,9 @@ const ContactForm: React.FC<ContactFormProps> = ({ className = '' }) => {
             id="name"
             type="text"
             name="name"
-            value={state.values.name || ''}
-            onChange={handleSubmit}
+            value={formValues.name}
+            onChange={handleChange}
+            onInput={handleSubmit}
             required
             className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all hover:border-gray-300 text-gray-900 placeholder-gray-400"
             placeholder="Jean Dupont"
@@ -108,8 +123,9 @@ const ContactForm: React.FC<ContactFormProps> = ({ className = '' }) => {
             id="email"
             type="email"
             name="email"
-            value={state.values.email || ''}
-            onChange={handleSubmit}
+            value={formValues.email}
+            onChange={handleChange}
+            onInput={handleSubmit}
             required
             className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all hover:border-gray-300 text-gray-900 placeholder-gray-400"
             placeholder="jean.dupont@email.com"
@@ -142,8 +158,9 @@ const ContactForm: React.FC<ContactFormProps> = ({ className = '' }) => {
             id="phone"
             type="tel"
             name="phone"
-            value={state.values.phone || ''}
-            onChange={handleSubmit}
+            value={formValues.phone}
+            onChange={handleChange}
+            onInput={handleSubmit}
             className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all hover:border-gray-300 text-gray-900 placeholder-gray-400"
             placeholder="+33 6 12 34 56 78"
           />
@@ -158,8 +175,9 @@ const ContactForm: React.FC<ContactFormProps> = ({ className = '' }) => {
         <select
           id="subject"
           name="subject"
-          value={state.values.subject || ''}
-          onChange={handleSubmit}
+          value={formValues.subject}
+          onChange={handleChange}
+          onInput={handleSubmit}
           className="w-full px-4 py-4 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all hover:border-gray-300 text-gray-900 appearance-none cursor-pointer"
         >
           <option value="">Sélectionnez un sujet</option>
@@ -183,8 +201,9 @@ const ContactForm: React.FC<ContactFormProps> = ({ className = '' }) => {
           <textarea
             id="message"
             name="message"
-            value={state.values.message || ''}
-            onChange={handleSubmit}
+            value={formValues.message}
+            onChange={handleChange}
+            onInput={handleSubmit}
             rows={6}
             required
             className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all hover:border-gray-300 text-gray-900 placeholder-gray-400 resize-none"
