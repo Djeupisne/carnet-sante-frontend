@@ -8,6 +8,8 @@ import DoctorCalendarPage from './pages/DoctorCalendarPage';
 import DoctorPatientsPage from './pages/DoctorPatientsPage';
 import DoctorAppointmentsPage from './pages/DoctorAppointmentsPage';
 import AdminDashboard from './pages/AdminDashboard';
+import MedicalFilePage from './pages/MedicalFilePage';
+import PatientProfilePage from './pages/PatientProfilePage';
 // Pages
 import HomePage from './pages/HomePage'
 import Login from './components/Auth/Login'
@@ -130,7 +132,23 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
-              
+              <Route 
+  path="/medical-file" 
+  element={
+    <ProtectedRoute>
+      <MedicalFilePage />
+    </ProtectedRoute>
+  } 
+/>
+
+<Route 
+  path="/profile" 
+  element={
+    <ProtectedRoute>
+      <PatientProfilePage />
+    </ProtectedRoute>
+  } 
+/>
               {/* Routes patient */}
               <Route 
                 path="/appointments" 
