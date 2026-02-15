@@ -18,7 +18,7 @@ interface ContactFormProps {
 const ContactForm: React.FC<ContactFormProps> = ({ className = '' }) => {
   const [state, handleSubmit] = useForm("mldbeodj");
 
-  // État local pour gérer les valeurs du formulaire (optionnel mais recommandé)
+  // État local pour gérer les valeurs du formulaire
   const [formValues, setFormValues] = React.useState({
     name: '',
     email: '',
@@ -90,7 +90,6 @@ const ContactForm: React.FC<ContactFormProps> = ({ className = '' }) => {
             name="name"
             value={formValues.name}
             onChange={handleChange}
-            onInput={handleSubmit}
             required
             className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all hover:border-gray-300 text-gray-900 placeholder-gray-400"
             placeholder="Jean Dupont"
@@ -125,7 +124,6 @@ const ContactForm: React.FC<ContactFormProps> = ({ className = '' }) => {
             name="email"
             value={formValues.email}
             onChange={handleChange}
-            onInput={handleSubmit}
             required
             className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all hover:border-gray-300 text-gray-900 placeholder-gray-400"
             placeholder="jean.dupont@email.com"
@@ -160,7 +158,6 @@ const ContactForm: React.FC<ContactFormProps> = ({ className = '' }) => {
             name="phone"
             value={formValues.phone}
             onChange={handleChange}
-            onInput={handleSubmit}
             className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all hover:border-gray-300 text-gray-900 placeholder-gray-400"
             placeholder="+33 6 12 34 56 78"
           />
@@ -177,7 +174,6 @@ const ContactForm: React.FC<ContactFormProps> = ({ className = '' }) => {
           name="subject"
           value={formValues.subject}
           onChange={handleChange}
-          onInput={handleSubmit}
           className="w-full px-4 py-4 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all hover:border-gray-300 text-gray-900 appearance-none cursor-pointer"
         >
           <option value="">Sélectionnez un sujet</option>
@@ -203,7 +199,6 @@ const ContactForm: React.FC<ContactFormProps> = ({ className = '' }) => {
             name="message"
             value={formValues.message}
             onChange={handleChange}
-            onInput={handleSubmit}
             rows={6}
             required
             className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all hover:border-gray-300 text-gray-900 placeholder-gray-400 resize-none"
