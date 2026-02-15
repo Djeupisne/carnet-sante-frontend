@@ -5,7 +5,13 @@ import { store } from './store/store'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { NotificationProvider } from './context/NotificationContext'
 import { ThemeProvider } from './context/ThemeContext' // ✅ NOUVEAU
-
+import PrivacyPage from './pages/PrivacyPage';
+import TermsPage from './pages/TermsPage';
+import LegalPage from './pages/LegalPage';
+import FeaturesPage from './pages/FeaturesPage';
+import PricingPage from './pages/PricingPage';
+import FAQPage from './pages/FAQPage';
+import DocumentationPage from './pages/DocumentationPage';
 // Pages et composants...
 import DoctorCalendarPage from './pages/DoctorCalendarPage';
 import DoctorPatientsPage from './pages/DoctorPatientsPage';
@@ -80,7 +86,14 @@ function App() {
                     </ProtectedRoute>
                   } 
                 />
-                
+                // Dans vos routes, ajoutez :
+<Route path="/privacy" element={<PrivacyPage />} />
+<Route path="/terms" element={<TermsPage />} />
+<Route path="/legal" element={<LegalPage />} />
+<Route path="/features" element={<FeaturesPage />} />
+<Route path="/pricing" element={<PricingPage />} />
+<Route path="/faq" element={<FAQPage />} />
+<Route path="/docs" element={<DocumentationPage />} />
                 {/* Admin */}
                 <Route 
                   path="/admin" 
