@@ -141,15 +141,19 @@ const PricingPage: React.FC = () => {
           ))}
         </div>
 
-        <div className="mt-8 text-center">
-          <p className="text-sm text-gray-500">
-            * Tous les prix sont HT. Une facture sera fournie après chaque paiement.
-          </p>
-          <Link to="/faq" className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline mt-4">
-            <HelpCircle className="w-4 h-4" />
-            Questions fréquentes sur les tarifs
-          </Link>
-        </div>
+       <div className="mt-8 text-center">
+  <p className="text-sm text-red-500">
+    * Tous les prix sont HT. Une facture sera fournie après chaque paiement.
+  </p>
+  <Link
+    to="/faq"
+    className="inline-flex items-center gap-1 text-sm text-green-600 hover:underline mt-4"
+  >
+    <HelpCircle className="w-4 h-4" />
+    Questions fréquentes sur les tarifs
+  </Link>
+</div>
+
       </div>
     </div>
   );
