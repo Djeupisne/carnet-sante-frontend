@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
+import { userService } from '../services/userService';
 import { 
   User, 
   Mail, 
@@ -23,30 +24,34 @@ import {
   Globe,
   Moon,
   Sun,
-  ChevronRight
+  ChevronRight,
+  Loader2
 } from 'lucide-react';
 
 const PatientProfilePage: React.FC = () => {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, logout } = useAuth();
   const navigate = useNavigate();
   const { showNotification } = useNotification();
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'preferences'>('profile');
+  const [userData, setUserData] = useState<any>(null);
   
   const [formData, setFormData] = useState({
-    firstName: user?.firstName || '',
-    lastName: user?.lastName || '',
-    email: user?.email || '',
-    phoneNumber: user?.phoneNumber || '',
-    dateOfBirth: user?.dateOfBirth || '',
-    gender: user?.gender || '',
-    address: '',
-    city: '',
-    postalCode: '',
-    bloodType: user?.bloodType || '',
-    weight: '',
-    height: '',
+    firstName: '',
+    lastName: '',
+    email: '',
+    phoneNumber: '',
+    dateOfBirth: '',
+    gender: '',
+    address: {
+      street: '',
+      city: '',
+      postalCode: '',
+      country: 'France'
+    },
+    bloodType: '',
     emergencyContact: {
       name: '',
       phone: '',
@@ -64,71 +69,162 @@ const PatientProfilePage: React.FC = () => {
     }
   });
 
-  useEffect(() => {
-    // Simuler le chargement des données supplémentaires
-    setFormData(prev => ({
-      ...prev,
-      address: '123 Rue de la Santé',
-      city: 'Paris',
-      postalCode: '75001',
-      weight: '70',
-      height: '175',
-      emergencyContact: {
-        name: 'Marie Dupont',
-        phone: '06 98 76 54 32',
-        relationship: 'Conjointe'
-      }
-    }));
-  }, []);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
 
-  const handleSave = () => {
-    setLoading(true);
-    // Simuler une sauvegarde
-    setTimeout(() => {
-      updateUser({
-        ...user!,
+  useEffect(() => {
+    if (user?.id) {
+      fetchUserData();
+    }
+  }, [user?.id]);
+
+  const fetchUserData = async () => {
+    try {
+      setLoading(true);
+      const response = await userService.getProfile();
+      if (response.success && response.data.user) {
+        const userData = response.data.user;
+        setUserData(userData);
+        
+        setFormData({
+          firstName: userData.firstName || '',
+          lastName: userData.lastName || '',
+          email: userData.email || '',
+          phoneNumber: userData.phoneNumber || '',
+          dateOfBirth: userData.dateOfBirth || '',
+          gender: userData.gender || '',
+          address: userData.address || {
+            street: '',
+            city: '',
+            postalCode: '',
+            country: 'France'
+          },
+          bloodType: userData.bloodType || '',
+          emergencyContact: userData.emergencyContact || {
+            name: '',
+            phone: '',
+            relationship: ''
+          }
+        });
+
+        if (userData.preferences) {
+          setPreferences(userData.preferences);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erreur chargement profil:', error);
+      showNotification('Erreur lors du chargement du profil', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      setSaving(true);
+      
+      const updateData = {
         firstName: formData.firstName,
         lastName: formData.lastName,
-        phoneNumber: formData.phoneNumber
+        phoneNumber: formData.phoneNumber,
+        address: formData.address,
+        bloodType: formData.bloodType,
+        emergencyContact: formData.emergencyContact,
+        preferences: preferences
+      };
+
+      const response = await userService.updateProfile(updateData);
+      
+      if (response.success) {
+        showNotification('✅ Profil mis à jour avec succès', 'success');
+        setIsEditing(false);
+        // Mettre à jour le contexte
+        if (user) {
+          updateUser({
+            ...user,
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            phoneNumber: formData.phoneNumber
+          });
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erreur sauvegarde:', error);
+      showNotification('❌ Erreur lors de la sauvegarde', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      showNotification('❌ Les mots de passe ne correspondent pas', 'error');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await userService.changePassword(passwordData.currentPassword, passwordData.newPassword);
+      showNotification('✅ Mot de passe modifié avec succès', 'success');
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
       });
-      showNotification('✅ Profil mis à jour avec succès', 'success');
-      setIsEditing(false);
-      setLoading(false);
-    }, 1000);
+    } catch (error: any) {
+      console.error('❌ Erreur changement mot de passe:', error);
+      showNotification(error.message || '❌ Erreur lors du changement de mot de passe', 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCancel = () => {
-    setFormData({
-      firstName: user?.firstName || '',
-      lastName: user?.lastName || '',
-      email: user?.email || '',
-      phoneNumber: user?.phoneNumber || '',
-      dateOfBirth: user?.dateOfBirth || '',
-      gender: user?.gender || '',
-      address: formData.address,
-      city: formData.city,
-      postalCode: formData.postalCode,
-      bloodType: user?.bloodType || '',
-      weight: formData.weight,
-      height: formData.height,
-      emergencyContact: formData.emergencyContact
-    });
+    if (userData) {
+      setFormData({
+        firstName: userData.firstName || '',
+        lastName: userData.lastName || '',
+        email: userData.email || '',
+        phoneNumber: userData.phoneNumber || '',
+        dateOfBirth: userData.dateOfBirth || '',
+        gender: userData.gender || '',
+        address: userData.address || {
+          street: '',
+          city: '',
+          postalCode: '',
+          country: 'France'
+        },
+        bloodType: userData.bloodType || '',
+        emergencyContact: userData.emergencyContact || {
+          name: '',
+          phone: '',
+          relationship: ''
+        }
+      });
+    }
     setIsEditing(false);
   };
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Non renseigné';
-    return new Date(dateString).toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+    try {
+      return new Date(dateString).toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    } catch {
+      return 'Date invalide';
+    }
   };
 
-  if (!user) {
+  if (!user || loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <p className="text-white text-lg">Chargement...</p>
+        <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
       </div>
     );
   }
@@ -203,7 +299,7 @@ const PatientProfilePage: React.FC = () => {
           <h2 className="text-2xl font-bold text-white mt-4">
             {user.firstName} {user.lastName}
           </h2>
-          <p className="text-white/60">Patient</p>
+          <p className="text-white/60">Patient • {user.uniqueCode}</p>
           
           {!isEditing && (
             <button
@@ -256,19 +352,10 @@ const PatientProfilePage: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-white/60 mb-1">Email</label>
-                  {isEditing ? (
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  ) : (
-                    <p className="text-white flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-white/40" />
-                      {formData.email}
-                    </p>
-                  )}
+                  <p className="text-white flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-white/40" />
+                    {formData.email}
+                  </p>
                 </div>
 
                 <div>
@@ -290,19 +377,10 @@ const PatientProfilePage: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-white/60 mb-1">Date de naissance</label>
-                  {isEditing ? (
-                    <input
-                      type="date"
-                      value={formData.dateOfBirth}
-                      onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  ) : (
-                    <p className="text-white flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-white/40" />
-                      {formatDate(formData.dateOfBirth)}
-                    </p>
-                  )}
+                  <p className="text-white flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-white/40" />
+                    {formatDate(formData.dateOfBirth)}
+                  </p>
                 </div>
 
                 <div>
@@ -314,12 +392,15 @@ const PatientProfilePage: React.FC = () => {
                       className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Non spécifié</option>
-                      <option value="M">Masculin</option>
-                      <option value="F">Féminin</option>
+                      <option value="male">Masculin</option>
+                      <option value="female">Féminin</option>
+                      <option value="other">Autre</option>
                     </select>
                   ) : (
                     <p className="text-white">
-                      {formData.gender === 'M' ? 'Masculin' : formData.gender === 'F' ? 'Féminin' : 'Non spécifié'}
+                      {formData.gender === 'male' ? 'Masculin' : 
+                       formData.gender === 'female' ? 'Féminin' : 
+                       formData.gender || 'Non spécifié'}
                     </p>
                   )}
                 </div>
@@ -333,47 +414,58 @@ const PatientProfilePage: React.FC = () => {
                 Adresse
               </h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="md:col-span-3">
-                  <label className="block text-sm font-medium text-white/60 mb-1">Adresse</label>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-white/60 mb-1">Rue</label>
                   {isEditing ? (
                     <input
                       type="text"
-                      value={formData.address}
-                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      value={formData.address.street}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        address: { ...formData.address, street: e.target.value }
+                      })}
                       className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   ) : (
-                    <p className="text-white">{formData.address || 'Non renseigné'}</p>
+                    <p className="text-white">{formData.address.street || 'Non renseigné'}</p>
                   )}
                 </div>
                 
-                <div>
-                  <label className="block text-sm font-medium text-white/60 mb-1">Ville</label>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={formData.city}
-                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  ) : (
-                    <p className="text-white">{formData.city || 'Non renseigné'}</p>
-                  )}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-white/60 mb-1">Code postal</label>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={formData.postalCode}
-                      onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
-                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  ) : (
-                    <p className="text-white">{formData.postalCode || 'Non renseigné'}</p>
-                  )}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-white/60 mb-1">Ville</label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={formData.address.city}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          address: { ...formData.address, city: e.target.value }
+                        })}
+                        className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <p className="text-white">{formData.address.city || 'Non renseigné'}</p>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-white/60 mb-1">Code postal</label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={formData.address.postalCode}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          address: { ...formData.address, postalCode: e.target.value }
+                        })}
+                        className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <p className="text-white">{formData.address.postalCode || 'Non renseigné'}</p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -385,66 +477,30 @@ const PatientProfilePage: React.FC = () => {
                 Informations médicales
               </h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-white/60 mb-1">Groupe sanguin</label>
-                  {isEditing ? (
-                    <select
-                      value={formData.bloodType}
-                      onChange={(e) => setFormData({ ...formData, bloodType: e.target.value })}
-                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Non spécifié</option>
-                      <option value="A+">A+</option>
-                      <option value="A-">A-</option>
-                      <option value="B+">B+</option>
-                      <option value="B-">B-</option>
-                      <option value="AB+">AB+</option>
-                      <option value="AB-">AB-</option>
-                      <option value="O+">O+</option>
-                      <option value="O-">O-</option>
-                    </select>
-                  ) : (
-                    <p className="text-white flex items-center gap-2">
-                      <Droplets className="w-4 h-4 text-red-400" />
-                      {formData.bloodType || 'Non renseigné'}
-                    </p>
-                  )}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-white/60 mb-1">Poids (kg)</label>
-                  {isEditing ? (
-                    <input
-                      type="number"
-                      value={formData.weight}
-                      onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
-                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  ) : (
-                    <p className="text-white flex items-center gap-2">
-                      <Scale className="w-4 h-4 text-green-400" />
-                      {formData.weight ? `${formData.weight} kg` : 'Non renseigné'}
-                    </p>
-                  )}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-white/60 mb-1">Taille (cm)</label>
-                  {isEditing ? (
-                    <input
-                      type="number"
-                      value={formData.height}
-                      onChange={(e) => setFormData({ ...formData, height: e.target.value })}
-                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  ) : (
-                    <p className="text-white flex items-center gap-2">
-                      <Activity className="w-4 h-4 text-blue-400" />
-                      {formData.height ? `${formData.height} cm` : 'Non renseigné'}
-                    </p>
-                  )}
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-white/60 mb-1">Groupe sanguin</label>
+                {isEditing ? (
+                  <select
+                    value={formData.bloodType}
+                    onChange={(e) => setFormData({ ...formData, bloodType: e.target.value })}
+                    className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Non spécifié</option>
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                  </select>
+                ) : (
+                  <p className="text-white flex items-center gap-2">
+                    <Droplets className="w-4 h-4 text-red-400" />
+                    {formData.bloodType || 'Non renseigné'}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -514,18 +570,19 @@ const PatientProfilePage: React.FC = () => {
               <div className="flex justify-end gap-3">
                 <button
                   onClick={handleCancel}
-                  className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg flex items-center gap-2 transition"
+                  disabled={saving}
+                  className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg flex items-center gap-2 transition disabled:opacity-50"
                 >
                   <X className="w-4 h-4" />
                   Annuler
                 </button>
                 <button
-                  onClick={handleSave}
-                  disabled={loading}
+                  onClick={handleSaveProfile}
+                  disabled={saving}
                   className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 transition disabled:opacity-50"
                 >
-                  <Save className="w-4 h-4" />
-                  {loading ? 'Sauvegarde...' : 'Enregistrer'}
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  {saving ? 'Sauvegarde...' : 'Enregistrer'}
                 </button>
               </div>
             )}
@@ -537,7 +594,7 @@ const PatientProfilePage: React.FC = () => {
             <div className="futuristic-card p-6">
               <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                 <Lock className="w-5 h-5 text-blue-400" />
-                Sécurité du compte
+                Changer le mot de passe
               </h3>
               
               <div className="space-y-4">
@@ -545,8 +602,9 @@ const PatientProfilePage: React.FC = () => {
                   <label className="block text-sm font-medium text-white/60 mb-1">Mot de passe actuel</label>
                   <input
                     type="password"
-                    placeholder="********"
-                    className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+                    value={passwordData.currentPassword}
+                    onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                    className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 
@@ -554,8 +612,9 @@ const PatientProfilePage: React.FC = () => {
                   <label className="block text-sm font-medium text-white/60 mb-1">Nouveau mot de passe</label>
                   <input
                     type="password"
-                    placeholder="••••••••"
-                    className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+                    value={passwordData.newPassword}
+                    onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                    className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 
@@ -563,30 +622,20 @@ const PatientProfilePage: React.FC = () => {
                   <label className="block text-sm font-medium text-white/60 mb-1">Confirmer le mot de passe</label>
                   <input
                     type="password"
-                    placeholder="••••••••"
-                    className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+                    value={passwordData.confirmPassword}
+                    onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                    className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 
-                <button className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
-                  Changer le mot de passe
+                <button
+                  onClick={handleChangePassword}
+                  disabled={saving || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
+                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition disabled:opacity-50"
+                >
+                  {saving ? 'Modification...' : 'Changer le mot de passe'}
                 </button>
               </div>
-            </div>
-
-            <div className="futuristic-card p-6">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <Shield className="w-5 h-5 text-green-400" />
-                Authentification à deux facteurs
-              </h3>
-              
-              <p className="text-white/80 mb-4">
-                Renforcez la sécurité de votre compte en activant l'authentification à deux facteurs.
-              </p>
-              
-              <button className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
-                Activer la 2FA
-              </button>
             </div>
           </div>
         )}
@@ -599,18 +648,16 @@ const PatientProfilePage: React.FC = () => {
                 Langue et région
               </h3>
               
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-white/60 mb-1">Langue</label>
-                  <select
-                    value={preferences.language}
-                    onChange={(e) => setPreferences({ ...preferences, language: e.target.value })}
-                    className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
-                  >
-                    <option value="fr">Français</option>
-                    <option value="en">English</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-white/60 mb-1">Langue</label>
+                <select
+                  value={preferences.language}
+                  onChange={(e) => setPreferences({ ...preferences, language: e.target.value })}
+                  className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="fr">Français</option>
+                  <option value="en">English</option>
+                </select>
               </div>
             </div>
 
@@ -693,6 +740,19 @@ const PatientProfilePage: React.FC = () => {
                   <span className="text-white text-sm">Sombre</span>
                 </button>
               </div>
+
+              {isEditing && (
+                <div className="mt-4 flex justify-end">
+                  <button
+                    onClick={handleSaveProfile}
+                    disabled={saving}
+                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 transition disabled:opacity-50"
+                  >
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    {saving ? 'Sauvegarde...' : 'Enregistrer les préférences'}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
