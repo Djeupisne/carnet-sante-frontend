@@ -502,9 +502,9 @@ const HomePage: React.FC = () => {
             <div>
               <h4 className="text-lg font-bold mb-4">Contact</h4>
               <ul className="space-y-3">
-                <li className="text-slate-400 font-medium text-sm">support@carnetsante.fr</li>
-                <li className="text-slate-400 font-medium text-sm">01 23 45 67 89</li>
-                <li className="text-slate-400 font-medium text-sm">Paris, France</li>
+                <li className="text-slate-400 font-medium text-sm">oualoumidjeupisne@gmail.com</li>
+                <li className="text-slate-400 font-medium text-sm">+228 93 36 01 50</li>
+                <li className="text-slate-400 font-medium text-sm">Lomé,Togo</li>
               </ul>
             </div>
           </div>
@@ -514,7 +514,7 @@ const HomePage: React.FC = () => {
 
           {/* Copyright */}
           <div className="flex flex-col md:flex-row justify-between items-center text-slate-500 text-sm">
-            <p className="font-medium">© 2024 Carnet de Santé. Tous droits réservés.</p>
+            <p className="font-medium">© 2026 Carnet de Santé. Tous droits réservés.</p>
             <div className="flex items-center gap-2 mt-4 md:mt-0">
               <Shield className="w-4 h-4 text-emerald-500" />
               <span className="text-slate-400 font-medium">Sécurisé et confidentiel</span>
