@@ -140,4 +140,28 @@ const FAQPage: React.FC = () => {
                         onClick={() => toggleItem(globalIndex)}
                         className="w-full flex items-center justify-between p-6 text-left hover:bg-slate-50 transition-colors"
                       >
-                        <span className="font-semibold text-slate-900">{
+                        <span className="font-semibold text-slate-900">{faq.q}</span>
+                        {isOpen ? (
+                          <ChevronUp className="w-5 h-5 text-slate-500" />
+                        ) : (
+                          <ChevronDown className="w-5 h-5 text-slate-500" />
+                        )}
+                      </button>
+                      {isOpen && (
+                        <div className="p-6 pt-0 text-slate-600 leading-relaxed border-t border-slate-200">
+                          {faq.a}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default FAQPage;
