@@ -143,14 +143,24 @@ const FinancialReports: React.FC = () => {
     try {
       setLoading(true);
       
+      // Récupérer les statistiques des médecins
       const statsResponse = await adminService.getDoctorFinancialStats();
+      console.log('📊 Données brutes des médecins:', statsResponse);
+      
       if (statsResponse.success) {
-        setDoctorStats(statsResponse.data);
+        // Adapter les données si nécessaire
+        const data = Array.isArray(statsResponse.data) ? statsResponse.data : [];
+        setDoctorStats(data);
       }
 
-      const paymentsResponse = await adminService.getAllAppointments();
-      if (paymentsResponse.success) {
-        const transformedPayments = transformAppointmentsToPayments(paymentsResponse.data);
+      // Récupérer les rendez-vous avec paiements
+      const appointmentsResponse = await adminService.getAllAppointments({
+        limit: 1000 // Récupérer un maximum
+      });
+      console.log('📋 Données brutes des rendez-vous:', appointmentsResponse);
+      
+      if (appointmentsResponse.success) {
+        const transformedPayments = transformAppointmentsToPayments(appointmentsResponse.data);
         setPayments(transformedPayments);
         setFilteredPayments(transformedPayments);
       }
@@ -164,29 +174,31 @@ const FinancialReports: React.FC = () => {
   };
 
   const transformAppointmentsToPayments = (appointments: any[]): Payment[] => {
+    if (!appointments || !Array.isArray(appointments)) return [];
+    
     return appointments
-      .filter(apt => apt.payment)
+      .filter(apt => apt && apt.payment) // Vérifier que le rendez-vous et le paiement existent
       .map(apt => ({
-        id: apt.payment.id,
-        amount: apt.payment.amount,
+        id: apt.payment?.id || `pay-${apt.id}`,
+        amount: parseFloat(apt.payment?.amount) || 0,
         currency: 'EUR',
-        status: apt.payment.status,
-        paymentMethod: apt.payment.paymentMethod || 'Carte bancaire',
-        transactionId: apt.payment.transactionId || `TR-${apt.id.slice(0, 8)}`,
-        createdAt: apt.payment.createdAt || apt.createdAt,
+        status: apt.payment?.status || 'pending',
+        paymentMethod: apt.payment?.paymentMethod || 'Carte bancaire',
+        transactionId: apt.payment?.transactionId || `TR-${apt.id.slice(0, 8)}`,
+        createdAt: apt.payment?.createdAt || apt.createdAt || new Date().toISOString(),
         appointment: {
           id: apt.id,
-          appointmentDate: apt.appointmentDate,
+          appointmentDate: apt.appointmentDate || new Date().toISOString(),
           doctor: apt.doctor ? {
-            id: apt.doctor.id,
-            firstName: apt.doctor.firstName,
-            lastName: apt.doctor.lastName,
-            specialty: apt.doctor.specialty
+            id: apt.doctor.id || '',
+            firstName: apt.doctor.firstName || '',
+            lastName: apt.doctor.lastName || '',
+            specialty: apt.doctor.specialty || 'Non spécifié'
           } : undefined,
           patient: apt.patient ? {
-            id: apt.patient.id,
-            firstName: apt.patient.firstName,
-            lastName: apt.patient.lastName
+            id: apt.patient.id || '',
+            firstName: apt.patient.firstName || '',
+            lastName: apt.patient.lastName || ''
           } : undefined
         }
       }));
@@ -246,14 +258,14 @@ const FinancialReports: React.FC = () => {
   };
 
   const calculateSummary = () => {
-    const totalRevenue = filteredPayments.reduce((sum, p) => sum + p.amount, 0);
+    const totalRevenue = filteredPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
     const totalCommission = totalRevenue * 0.1;
     const completedPayments = filteredPayments
       .filter(p => p.status === 'completed')
-      .reduce((sum, p) => sum + p.amount, 0);
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
     const pendingPayments = filteredPayments
       .filter(p => p.status === 'pending')
-      .reduce((sum, p) => sum + p.amount, 0);
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
 
     setSummary({
       totalRevenue,
@@ -267,26 +279,26 @@ const FinancialReports: React.FC = () => {
   };
 
   const calculateTransactionStats = () => {
-    const totalAmount = filteredPayments.reduce((sum, p) => sum + p.amount, 0);
+    const totalAmount = filteredPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
     const count = filteredPayments.length;
     
     const byStatus = {
-      pending: filteredPayments.filter(p => p.status === 'pending').reduce((sum, p) => sum + p.amount, 0),
-      completed: filteredPayments.filter(p => p.status === 'completed').reduce((sum, p) => sum + p.amount, 0),
-      failed: filteredPayments.filter(p => p.status === 'failed').reduce((sum, p) => sum + p.amount, 0),
-      refunded: filteredPayments.filter(p => p.status === 'refunded').reduce((sum, p) => sum + p.amount, 0)
+      pending: filteredPayments.filter(p => p.status === 'pending').reduce((sum, p) => sum + (p.amount || 0), 0),
+      completed: filteredPayments.filter(p => p.status === 'completed').reduce((sum, p) => sum + (p.amount || 0), 0),
+      failed: filteredPayments.filter(p => p.status === 'failed').reduce((sum, p) => sum + (p.amount || 0), 0),
+      refunded: filteredPayments.filter(p => p.status === 'refunded').reduce((sum, p) => sum + (p.amount || 0), 0)
     };
 
-    // ✅ MODE DE PAIEMENT - Uniquement les paiements complétés des patients
-    const byPaymentMethod: { [key: string]: number } = {};
+    // Méthodes de paiement - uniquement les paiements complétés
+    const byPaymentMethod: Record<string, number> = {};
     filteredPayments
-      .filter(p => p.status === 'completed') // Ne garder que les paiements complétés
+      .filter(p => p.status === 'completed')
       .forEach(p => {
         const method = p.paymentMethod || 'Carte bancaire';
-        byPaymentMethod[method] = (byPaymentMethod[method] || 0) + p.amount;
+        byPaymentMethod[method] = (byPaymentMethod[method] || 0) + (p.amount || 0);
       });
 
-    // ✅ TOP MÉDECINS - Classés par nombre de rendez-vous confirmés
+    // Top médecins par nombre de rendez-vous confirmés
     const doctorMap = new Map<string, { 
       name: string; 
       specialty: string; 
@@ -295,11 +307,11 @@ const FinancialReports: React.FC = () => {
     }>();
     
     filteredPayments
-      .filter(p => p.status === 'completed' && p.appointment?.doctor) // Ne garder que les paiements complétés
+      .filter(p => p.status === 'completed' && p.appointment?.doctor)
       .forEach(p => {
         if (p.appointment?.doctor) {
           const doctorId = p.appointment.doctor.id;
-          const doctorName = `Dr. ${p.appointment.doctor.firstName} ${p.appointment.doctor.lastName}`;
+          const doctorName = `Dr. ${p.appointment.doctor.firstName || ''} ${p.appointment.doctor.lastName || ''}`.trim();
           const specialty = p.appointment.doctor.specialty || 'Non spécifié';
           const current = doctorMap.get(doctorId) || { 
             name: doctorName, 
@@ -311,16 +323,15 @@ const FinancialReports: React.FC = () => {
           doctorMap.set(doctorId, {
             name: doctorName,
             specialty,
-            appointmentCount: current.appointmentCount + 1, // Incrémenter le compteur de rendez-vous
-            revenue: current.revenue + p.amount
+            appointmentCount: current.appointmentCount + 1,
+            revenue: current.revenue + (p.amount || 0)
           });
         }
       });
 
-    // Trier par nombre de rendez-vous (décroissant)
     const topDoctorsByAppointments = Array.from(doctorMap.values())
-      .sort((a, b) => b.appointmentCount - a.appointmentCount) // Tri par nombre de rendez-vous
-      .slice(0, 5); // Top 5
+      .sort((a, b) => b.appointmentCount - a.appointmentCount)
+      .slice(0, 5);
 
     setTransactionStats({
       totalAmount,
@@ -337,21 +348,17 @@ const FinancialReports: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const formatDateShort = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+    try {
+      return new Date(dateString).toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return 'Date invalide';
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -638,11 +645,11 @@ const FinancialReports: React.FC = () => {
                     </h3>
                     <div className="grid grid-cols-2 gap-2">
                       {[
-                        { value: 'all', label: 'Tous', color: 'gray' },
-                        { value: 'pending', label: 'En attente', color: 'yellow' },
-                        { value: 'completed', label: 'Complétés', color: 'green' },
-                        { value: 'failed', label: 'Échoués', color: 'red' },
-                        { value: 'refunded', label: 'Remboursés', color: 'purple' }
+                        { value: 'all', label: 'Tous' },
+                        { value: 'pending', label: 'En attente' },
+                        { value: 'completed', label: 'Complétés' },
+                        { value: 'failed', label: 'Échoués' },
+                        { value: 'refunded', label: 'Remboursés' }
                       ].map(option => (
                         <button
                           key={option.value}
@@ -652,7 +659,7 @@ const FinancialReports: React.FC = () => {
                           }}
                           className={`px-3 py-2 rounded-lg text-sm transition ${
                             statusFilter === option.value
-                              ? `bg-${option.color}-100 text-${option.color}-700 border border-${option.color}-200 font-medium`
+                              ? `bg-${option.value === 'pending' ? 'yellow' : option.value === 'completed' ? 'green' : option.value === 'failed' ? 'red' : option.value === 'refunded' ? 'purple' : 'green'}-100 text-${option.value === 'pending' ? 'yellow' : option.value === 'completed' ? 'green' : option.value === 'failed' ? 'red' : option.value === 'refunded' ? 'purple' : 'green'}-700 border border-${option.value === 'pending' ? 'yellow' : option.value === 'completed' ? 'green' : option.value === 'failed' ? 'red' : option.value === 'refunded' ? 'purple' : 'green'}-200 font-medium`
                               : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
                           }`}
                         >
@@ -842,9 +849,9 @@ const FinancialReports: React.FC = () => {
         </div>
       </div>
 
-      {/* Statistiques détaillées des transactions */}
+      {/* Statistiques détaillées */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Statistiques par statut */}
+        {/* Répartition par statut */}
         <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <PieChart className="w-5 h-5 text-blue-600" />
@@ -906,7 +913,7 @@ const FinancialReports: React.FC = () => {
           </div>
         </div>
 
-        {/* ✅ Méthodes de paiement - Montants payés par les patients */}
+        {/* Méthodes de paiement */}
         <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <CreditCard className="w-5 h-5 text-green-600" />
@@ -932,7 +939,7 @@ const FinancialReports: React.FC = () => {
           </div>
         </div>
 
-        {/* ✅ Top médecins - Classés par nombre de rendez-vous confirmés */}
+        {/* Top médecins */}
         <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <Award className="w-5 h-5 text-yellow-500" />
@@ -986,7 +993,7 @@ const FinancialReports: React.FC = () => {
         ) : doctorStats.length === 0 ? (
           <div className="text-center py-8 bg-gray-50 rounded-lg">
             <DollarSign className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">Aucune donnée financière disponible</p>
+            <p className="text-gray-500">Aucune donnée disponible</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -1018,21 +1025,6 @@ const FinancialReports: React.FC = () => {
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="bg-gray-50 border-t border-gray-200">
-                <tr>
-                  <td colSpan={3} className="py-3 px-4 font-semibold text-gray-900">Totaux</td>
-                  <td className="py-3 px-4 text-right font-bold text-gray-900">
-                    {formatCurrency(doctorStats.reduce((sum, d) => sum + d.totalRevenue, 0))}
-                  </td>
-                  <td className="py-3 px-4 text-right font-bold text-purple-600">
-                    {formatCurrency(doctorStats.reduce((sum, d) => sum + d.commission, 0))}
-                  </td>
-                  <td className="py-3 px-4 text-right font-bold text-green-600">
-                    {formatCurrency(doctorStats.reduce((sum, d) => sum + d.netRevenue, 0))}
-                  </td>
-                  <td className="py-3 px-4 text-right font-bold text-blue-600">-</td>
-                </tr>
-              </tfoot>
             </table>
           </div>
         )}
