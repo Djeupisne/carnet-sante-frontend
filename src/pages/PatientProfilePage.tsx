@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
-import { userService, UserPreferences } from '../services/userService';
+import { useTheme } from '../context/ThemeContext';
+import { userService } from '../services/userService';
 import { 
   User, 
   Mail, 
@@ -11,8 +12,6 @@ import {
   MapPin, 
   Heart, 
   Droplets,
-  Scale,
-  Activity,
   Edit,
   Save,
   X,
@@ -24,27 +23,13 @@ import {
   Globe,
   Moon,
   Sun,
-  ChevronRight,
   Loader2,
-  Check,
-  AlertCircle
+  Check
 } from 'lucide-react';
-
-interface EmergencyContact {
-  name: string;
-  phone: string;
-  relationship: string;
-}
-
-interface Address {
-  street: string;
-  city: string;
-  postalCode: string;
-  country: string;
-}
 
 const PatientProfilePage: React.FC = () => {
   const { user, updateUser } = useAuth();
+  const { theme, language, setTheme, setLanguage, t } = useTheme();
   const navigate = useNavigate();
   const { showNotification } = useNotification();
   const [loading, setLoading] = useState(false);
@@ -66,18 +51,18 @@ const PatientProfilePage: React.FC = () => {
       city: '',
       postalCode: '',
       country: 'France'
-    } as Address,
+    },
     bloodType: '',
     emergencyContact: {
       name: '',
       phone: '',
       relationship: ''
-    } as EmergencyContact
+    }
   });
 
-  const [preferences, setPreferences] = useState<UserPreferences>({
+  const [preferences, setPreferences] = useState({
     language: 'fr',
-    theme: 'dark',
+    theme: 'dark' as const,
     notifications: {
       email: true,
       sms: false,
@@ -97,67 +82,20 @@ const PatientProfilePage: React.FC = () => {
     confirmPassword: false
   });
 
-  // Charger les données utilisateur
   useEffect(() => {
     if (user?.id) {
       fetchUserData();
     }
   }, [user?.id]);
 
-  // Appliquer le thème et la langue
   useEffect(() => {
-    applyTheme(preferences.theme);
-    applyLanguage(preferences.language);
-  }, [preferences.theme, preferences.language]);
-
-  const applyTheme = (theme: 'light' | 'dark') => {
-    const root = document.documentElement;
-    
-    if (theme === 'light') {
-      // Mode clair
-      root.style.setProperty('--bg-primary', '#f9fafb');
-      root.style.setProperty('--bg-secondary', '#ffffff');
-      root.style.setProperty('--text-primary', '#111827');
-      root.style.setProperty('--text-secondary', '#6b7280');
-      root.style.setProperty('--border-color', '#e5e7eb');
-      
-      // Ajouter une classe pour le mode clair
-      root.classList.remove('dark');
-      root.classList.add('light');
-      
-      // Changer la couleur de fond du body
-      document.body.className = 'bg-gray-50';
-    } else {
-      // Mode sombre
-      root.style.setProperty('--bg-primary', '#0f172a');
-      root.style.setProperty('--bg-secondary', '#1e293b');
-      root.style.setProperty('--text-primary', '#ffffff');
-      root.style.setProperty('--text-secondary', '#94a3b8');
-      root.style.setProperty('--border-color', '#334155');
-      
-      // Ajouter une classe pour le mode sombre
-      root.classList.remove('light');
-      root.classList.add('dark');
-      
-      // Changer la couleur de fond du body
-      document.body.className = 'bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900';
-    }
-  };
-
-  const applyLanguage = (language: string) => {
-    // Stocker la langue dans localStorage
-    localStorage.setItem('preferred-language', language);
-    
-    // Changer la direction du texte si nécessaire
-    if (language === 'ar') {
-      document.documentElement.dir = 'rtl';
-    } else {
-      document.documentElement.dir = 'ltr';
-    }
-    
-    // Vous pouvez également changer les textes ici si vous avez un système d'internationalisation
-    console.log('🌐 Langue changée:', language);
-  };
+    // Synchroniser les préférences avec le contexte global
+    setPreferences(prev => ({
+      ...prev,
+      language,
+      theme
+    }));
+  }, [language, theme]);
 
   const fetchUserData = async () => {
     try {
@@ -194,7 +132,7 @@ const PatientProfilePage: React.FC = () => {
       }
     } catch (error) {
       console.error('❌ Erreur chargement profil:', error);
-      showNotification('Erreur lors du chargement du profil', 'error');
+      showNotification(t('error'), 'error');
     } finally {
       setLoading(false);
     }
@@ -205,12 +143,12 @@ const PatientProfilePage: React.FC = () => {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      showNotification('❌ Veuillez sélectionner une image', 'error');
+      showNotification(t('error'), 'error');
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      showNotification('❌ L\'image ne doit pas dépasser 5MB', 'error');
+      showNotification(t('error'), 'error');
       return;
     }
 
@@ -223,7 +161,7 @@ const PatientProfilePage: React.FC = () => {
       const response = await userService.updateProfilePicture(formData);
       
       if (response.success) {
-        showNotification('✅ Photo de profil mise à jour', 'success');
+        showNotification(t('operationSuccessful'), 'success');
         if (user) {
           updateUser({
             ...user,
@@ -233,7 +171,7 @@ const PatientProfilePage: React.FC = () => {
       }
     } catch (error) {
       console.error('❌ Erreur upload photo:', error);
-      showNotification('❌ Erreur lors de l\'upload', 'error');
+      showNotification(t('error'), 'error');
     } finally {
       setUploadingPhoto(false);
     }
@@ -255,7 +193,7 @@ const PatientProfilePage: React.FC = () => {
       const response = await userService.updateProfile(updateData);
       
       if (response.success) {
-        showNotification('✅ Profil mis à jour avec succès', 'success');
+        showNotification(t('operationSuccessful'), 'success');
         setIsEditing(false);
         if (user) {
           updateUser({
@@ -268,7 +206,7 @@ const PatientProfilePage: React.FC = () => {
       }
     } catch (error) {
       console.error('❌ Erreur sauvegarde:', error);
-      showNotification('❌ Erreur lors de la sauvegarde', 'error');
+      showNotification(t('error'), 'error');
     } finally {
       setSaving(false);
     }
@@ -278,26 +216,22 @@ const PatientProfilePage: React.FC = () => {
     try {
       setSaving(true);
       
-      // Sauvegarde locale immédiate
-      localStorage.setItem('preferences', JSON.stringify(preferences));
+      // Mettre à jour le contexte global
+      setLanguage(preferences.language as any);
+      setTheme(preferences.theme);
       
-      // Appliquer les changements immédiatement
-      applyTheme(preferences.theme);
-      applyLanguage(preferences.language);
+      showNotification(t('operationSuccessful'), 'success');
       
-      showNotification('✅ Préférences mises à jour', 'success');
-      
-      // Tentative de sauvegarde sur le serveur (non bloquante)
+      // Tentative de sauvegarde sur le serveur
       try {
         await userService.updatePreferences(preferences);
-        console.log('✅ Préférences sauvegardées sur le serveur');
       } catch (serverError) {
-        console.warn('⚠️ Sauvegarde serveur échouée, mais changements appliqués localement');
+        console.warn('⚠️ Sauvegarde serveur échouée');
       }
       
     } catch (error) {
       console.error('❌ Erreur sauvegarde préférences:', error);
-      showNotification('❌ Erreur lors de la sauvegarde', 'error');
+      showNotification(t('error'), 'error');
     } finally {
       setSaving(false);
     }
@@ -326,11 +260,11 @@ const PatientProfilePage: React.FC = () => {
       hasError = true;
     }
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      showNotification('❌ Les mots de passe ne correspondent pas', 'error');
+      showNotification(t('error'), 'error');
       return;
     }
     if (passwordData.newPassword.length < 6) {
-      showNotification('❌ Le mot de passe doit contenir au moins 6 caractères', 'error');
+      showNotification(t('error'), 'error');
       return;
     }
 
@@ -342,7 +276,7 @@ const PatientProfilePage: React.FC = () => {
     try {
       setSaving(true);
       await userService.changePassword(passwordData.currentPassword, passwordData.newPassword);
-      showNotification('✅ Mot de passe modifié avec succès', 'success');
+      showNotification(t('operationSuccessful'), 'success');
       setPasswordData({
         currentPassword: '',
         newPassword: '',
@@ -350,7 +284,7 @@ const PatientProfilePage: React.FC = () => {
       });
     } catch (error: any) {
       console.error('❌ Erreur changement mot de passe:', error);
-      showNotification(error.message || '❌ Erreur lors du changement de mot de passe', 'error');
+      showNotification(error.message || t('error'), 'error');
     } finally {
       setSaving(false);
     }
@@ -383,15 +317,15 @@ const PatientProfilePage: React.FC = () => {
   };
 
   const formatDate = (dateString?: string) => {
-    if (!dateString) return 'Non renseigné';
+    if (!dateString) return t('noData');
     try {
-      return new Date(dateString).toLocaleDateString('fr-FR', {
+      return new Date(dateString).toLocaleDateString(language, {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric'
       });
     } catch {
-      return 'Date invalide';
+      return t('noData');
     }
   };
 
@@ -420,14 +354,14 @@ const PatientProfilePage: React.FC = () => {
   return (
     <div className="min-h-screen transition-colors duration-300"
          style={{ 
-           backgroundColor: preferences.theme === 'light' ? '#f9fafb' : '#0f172a',
-           color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+           backgroundColor: theme === 'light' ? '#f9fafb' : '#0f172a',
+           color: theme === 'light' ? '#111827' : '#ffffff'
          }}>
       {/* Header */}
       <header className="sticky top-0 z-50 backdrop-blur-md border-b transition-colors duration-300"
               style={{ 
-                backgroundColor: preferences.theme === 'light' ? 'rgba(255,255,255,0.9)' : 'rgba(15,23,42,0.9)',
-                borderColor: preferences.theme === 'light' ? '#e5e7eb' : '#334155'
+                backgroundColor: theme === 'light' ? 'rgba(255,255,255,0.9)' : 'rgba(15,23,42,0.9)',
+                borderColor: theme === 'light' ? '#e5e7eb' : '#334155'
               }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -436,8 +370,8 @@ const PatientProfilePage: React.FC = () => {
                 onClick={() => navigate('/dashboard')}
                 className="mr-4 p-2 rounded-lg transition-colors"
                 style={{ 
-                  backgroundColor: preferences.theme === 'light' ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.1)',
-                  color: preferences.theme === 'light' ? '#4b5563' : '#ffffff'
+                  backgroundColor: theme === 'light' ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.1)',
+                  color: theme === 'light' ? '#4b5563' : '#ffffff'
                 }}
               >
                 <ArrowLeft className="w-5 h-5" />
@@ -446,7 +380,7 @@ const PatientProfilePage: React.FC = () => {
                 <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
                   <User className="w-5 h-5 text-white" />
                 </div>
-                <h1 className="text-xl font-black gradient-text">Mon Profil</h1>
+                <h1 className="text-xl font-black gradient-text">{t('profile')}</h1>
               </div>
             </div>
           </div>
@@ -456,15 +390,15 @@ const PatientProfilePage: React.FC = () => {
       {/* Navigation tabs */}
       <div className="border-b transition-colors duration-300"
            style={{ 
-             borderColor: preferences.theme === 'light' ? '#e5e7eb' : '#334155',
-             backgroundColor: preferences.theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)'
+             borderColor: theme === 'light' ? '#e5e7eb' : '#334155',
+             backgroundColor: theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)'
            }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="flex space-x-8 overflow-x-auto">
             {[
-              { id: 'profile', label: preferences.language === 'fr' ? 'Profil' : 'Profile', icon: User },
-              { id: 'security', label: preferences.language === 'fr' ? 'Sécurité' : 'Security', icon: Lock },
-              { id: 'preferences', label: preferences.language === 'fr' ? 'Préférences' : 'Preferences', icon: Bell }
+              { id: 'profile', label: t('personalInfo'), icon: User },
+              { id: 'security', label: t('security'), icon: Lock },
+              { id: 'preferences', label: t('preferences'), icon: Bell }
             ].map((tab) => {
               const Icon = tab.icon;
               return (
@@ -491,8 +425,8 @@ const PatientProfilePage: React.FC = () => {
         {/* Photo de profil */}
         <div className="rounded-xl p-8 mb-6 text-center relative transition-colors duration-300"
              style={{ 
-               backgroundColor: preferences.theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
-               borderColor: preferences.theme === 'light' ? '#e5e7eb' : '#334155',
+               backgroundColor: theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
+               borderColor: theme === 'light' ? '#e5e7eb' : '#334155',
                borderWidth: '1px'
              }}>
           <div className="relative inline-block">
@@ -529,10 +463,10 @@ const PatientProfilePage: React.FC = () => {
               </div>
             )}
           </div>
-          <h2 className="text-2xl font-bold mt-4" style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>
+          <h2 className="text-2xl font-bold mt-4" style={{ color: theme === 'light' ? '#111827' : '#ffffff' }}>
             {user.firstName} {user.lastName}
           </h2>
-          <p className="text-gray-500">Patient • {user.uniqueCode}</p>
+          <p className="text-gray-500">{t('patient')} • {user.uniqueCode}</p>
           
           {!isEditing && (
             <button
@@ -540,7 +474,7 @@ const PatientProfilePage: React.FC = () => {
               className="absolute top-8 right-8 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 transition"
             >
               <Edit className="w-4 h-4" />
-              {preferences.language === 'fr' ? 'Modifier' : 'Edit'}
+              {t('edit')}
             </button>
           )}
         </div>
@@ -550,20 +484,20 @@ const PatientProfilePage: React.FC = () => {
             {/* Informations personnelles */}
             <div className="rounded-xl p-6 transition-colors duration-300"
                  style={{ 
-                   backgroundColor: preferences.theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
-                   borderColor: preferences.theme === 'light' ? '#e5e7eb' : '#334155',
+                   backgroundColor: theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
+                   borderColor: theme === 'light' ? '#e5e7eb' : '#334155',
                    borderWidth: '1px'
                  }}>
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <User className="w-5 h-5 text-blue-400" />
-                {preferences.language === 'fr' ? 'Informations personnelles' : 'Personal Information'}
+                {t('personalInfo')}
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1"
-                         style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
-                    {preferences.language === 'fr' ? 'Prénom' : 'First Name'}
+                         style={{ color: theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                    {t('firstName')}
                   </label>
                   {isEditing ? (
                     <input
@@ -572,20 +506,20 @@ const PatientProfilePage: React.FC = () => {
                       onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                       className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       style={{ 
-                        backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
-                        borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
-                        color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                        backgroundColor: theme === 'light' ? '#ffffff' : '#1e293b',
+                        borderColor: theme === 'light' ? '#d1d5db' : '#475569',
+                        color: theme === 'light' ? '#111827' : '#ffffff'
                       }}
                     />
                   ) : (
-                    <p style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>{formData.firstName}</p>
+                    <p style={{ color: theme === 'light' ? '#111827' : '#ffffff' }}>{formData.firstName}</p>
                   )}
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium mb-1"
-                         style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
-                    {preferences.language === 'fr' ? 'Nom' : 'Last Name'}
+                         style={{ color: theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                    {t('lastName')}
                   </label>
                   {isEditing ? (
                     <input
@@ -594,22 +528,22 @@ const PatientProfilePage: React.FC = () => {
                       onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                       className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       style={{ 
-                        backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
-                        borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
-                        color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                        backgroundColor: theme === 'light' ? '#ffffff' : '#1e293b',
+                        borderColor: theme === 'light' ? '#d1d5db' : '#475569',
+                        color: theme === 'light' ? '#111827' : '#ffffff'
                       }}
                     />
                   ) : (
-                    <p style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>{formData.lastName}</p>
+                    <p style={{ color: theme === 'light' ? '#111827' : '#ffffff' }}>{formData.lastName}</p>
                   )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium mb-1"
-                         style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                         style={{ color: theme === 'light' ? '#4b5563' : '#94a3b8' }}>
                     Email
                   </label>
-                  <p className="flex items-center gap-2" style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>
+                  <p className="flex items-center gap-2" style={{ color: theme === 'light' ? '#111827' : '#ffffff' }}>
                     <Mail className="w-4 h-4 text-gray-400" />
                     {formData.email}
                   </p>
@@ -617,8 +551,8 @@ const PatientProfilePage: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium mb-1"
-                         style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
-                    {preferences.language === 'fr' ? 'Téléphone' : 'Phone'}
+                         style={{ color: theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                    {t('phoneNumber')}
                   </label>
                   {isEditing ? (
                     <input
@@ -627,23 +561,23 @@ const PatientProfilePage: React.FC = () => {
                       onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
                       className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       style={{ 
-                        backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
-                        borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
-                        color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                        backgroundColor: theme === 'light' ? '#ffffff' : '#1e293b',
+                        borderColor: theme === 'light' ? '#d1d5db' : '#475569',
+                        color: theme === 'light' ? '#111827' : '#ffffff'
                       }}
                     />
                   ) : (
-                    <p className="flex items-center gap-2" style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>
+                    <p className="flex items-center gap-2" style={{ color: theme === 'light' ? '#111827' : '#ffffff' }}>
                       <Phone className="w-4 h-4 text-gray-400" />
-                      {formData.phoneNumber || 'Non renseigné'}
+                      {formData.phoneNumber || t('noData')}
                     </p>
                   )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium mb-1"
-                         style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
-                    {preferences.language === 'fr' ? 'Date de naissance' : 'Date of Birth'}
+                         style={{ color: theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                    {t('dateOfBirth')}
                   </label>
                   {isEditing ? (
                     <input
@@ -652,13 +586,13 @@ const PatientProfilePage: React.FC = () => {
                       onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
                       className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       style={{ 
-                        backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
-                        borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
-                        color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                        backgroundColor: theme === 'light' ? '#ffffff' : '#1e293b',
+                        borderColor: theme === 'light' ? '#d1d5db' : '#475569',
+                        color: theme === 'light' ? '#111827' : '#ffffff'
                       }}
                     />
                   ) : (
-                    <p className="flex items-center gap-2" style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>
+                    <p className="flex items-center gap-2" style={{ color: theme === 'light' ? '#111827' : '#ffffff' }}>
                       <Calendar className="w-4 h-4 text-gray-400" />
                       {formatDate(formData.dateOfBirth)}
                     </p>
@@ -667,8 +601,8 @@ const PatientProfilePage: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium mb-1"
-                         style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
-                    {preferences.language === 'fr' ? 'Sexe' : 'Gender'}
+                         style={{ color: theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                    {t('gender')}
                   </label>
                   {isEditing ? (
                     <select
@@ -676,21 +610,21 @@ const PatientProfilePage: React.FC = () => {
                       onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
                       className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       style={{ 
-                        backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
-                        borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
-                        color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                        backgroundColor: theme === 'light' ? '#ffffff' : '#1e293b',
+                        borderColor: theme === 'light' ? '#d1d5db' : '#475569',
+                        color: theme === 'light' ? '#111827' : '#ffffff'
                       }}
                     >
-                      <option value="">{preferences.language === 'fr' ? 'Non spécifié' : 'Not specified'}</option>
-                      <option value="male">{preferences.language === 'fr' ? 'Masculin' : 'Male'}</option>
-                      <option value="female">{preferences.language === 'fr' ? 'Féminin' : 'Female'}</option>
-                      <option value="other">{preferences.language === 'fr' ? 'Autre' : 'Other'}</option>
+                      <option value="">{t('notSpecified')}</option>
+                      <option value="male">{t('male')}</option>
+                      <option value="female">{t('female')}</option>
+                      <option value="other">{t('other')}</option>
                     </select>
                   ) : (
-                    <p style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>
-                      {formData.gender === 'male' ? (preferences.language === 'fr' ? 'Masculin' : 'Male') : 
-                       formData.gender === 'female' ? (preferences.language === 'fr' ? 'Féminin' : 'Female') : 
-                       formData.gender || (preferences.language === 'fr' ? 'Non spécifié' : 'Not specified')}
+                    <p style={{ color: theme === 'light' ? '#111827' : '#ffffff' }}>
+                      {formData.gender === 'male' ? t('male') : 
+                       formData.gender === 'female' ? t('female') : 
+                       formData.gender || t('notSpecified')}
                     </p>
                   )}
                 </div>
@@ -700,20 +634,20 @@ const PatientProfilePage: React.FC = () => {
             {/* Adresse */}
             <div className="rounded-xl p-6 transition-colors duration-300"
                  style={{ 
-                   backgroundColor: preferences.theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
-                   borderColor: preferences.theme === 'light' ? '#e5e7eb' : '#334155',
+                   backgroundColor: theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
+                   borderColor: theme === 'light' ? '#e5e7eb' : '#334155',
                    borderWidth: '1px'
                  }}>
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-purple-400" />
-                {preferences.language === 'fr' ? 'Adresse' : 'Address'}
+                {t('address')}
               </h3>
               
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-1"
-                         style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
-                    {preferences.language === 'fr' ? 'Rue' : 'Street'}
+                         style={{ color: theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                    {t('street')}
                   </label>
                   {isEditing ? (
                     <input
@@ -725,21 +659,21 @@ const PatientProfilePage: React.FC = () => {
                       })}
                       className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       style={{ 
-                        backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
-                        borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
-                        color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                        backgroundColor: theme === 'light' ? '#ffffff' : '#1e293b',
+                        borderColor: theme === 'light' ? '#d1d5db' : '#475569',
+                        color: theme === 'light' ? '#111827' : '#ffffff'
                       }}
                     />
                   ) : (
-                    <p style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>{formData.address.street || 'Non renseigné'}</p>
+                    <p style={{ color: theme === 'light' ? '#111827' : '#ffffff' }}>{formData.address.street || t('noData')}</p>
                   )}
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1"
-                           style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
-                      {preferences.language === 'fr' ? 'Ville' : 'City'}
+                           style={{ color: theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                      {t('city')}
                     </label>
                     {isEditing ? (
                       <input
@@ -751,20 +685,20 @@ const PatientProfilePage: React.FC = () => {
                         })}
                         className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         style={{ 
-                          backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
-                          borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
-                          color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                          backgroundColor: theme === 'light' ? '#ffffff' : '#1e293b',
+                          borderColor: theme === 'light' ? '#d1d5db' : '#475569',
+                          color: theme === 'light' ? '#111827' : '#ffffff'
                         }}
                       />
                     ) : (
-                      <p style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>{formData.address.city || 'Non renseigné'}</p>
+                      <p style={{ color: theme === 'light' ? '#111827' : '#ffffff' }}>{formData.address.city || t('noData')}</p>
                     )}
                   </div>
                   
                   <div>
                     <label className="block text-sm font-medium mb-1"
-                           style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
-                      {preferences.language === 'fr' ? 'Code postal' : 'Postal Code'}
+                           style={{ color: theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                      {t('postalCode')}
                     </label>
                     {isEditing ? (
                       <input
@@ -776,13 +710,13 @@ const PatientProfilePage: React.FC = () => {
                         })}
                         className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         style={{ 
-                          backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
-                          borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
-                          color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                          backgroundColor: theme === 'light' ? '#ffffff' : '#1e293b',
+                          borderColor: theme === 'light' ? '#d1d5db' : '#475569',
+                          color: theme === 'light' ? '#111827' : '#ffffff'
                         }}
                       />
                     ) : (
-                      <p style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>{formData.address.postalCode || 'Non renseigné'}</p>
+                      <p style={{ color: theme === 'light' ? '#111827' : '#ffffff' }}>{formData.address.postalCode || t('noData')}</p>
                     )}
                   </div>
                 </div>
@@ -792,19 +726,19 @@ const PatientProfilePage: React.FC = () => {
             {/* Informations médicales */}
             <div className="rounded-xl p-6 transition-colors duration-300"
                  style={{ 
-                   backgroundColor: preferences.theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
-                   borderColor: preferences.theme === 'light' ? '#e5e7eb' : '#334155',
+                   backgroundColor: theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
+                   borderColor: theme === 'light' ? '#e5e7eb' : '#334155',
                    borderWidth: '1px'
                  }}>
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Heart className="w-5 h-5 text-red-400" />
-                {preferences.language === 'fr' ? 'Informations médicales' : 'Medical Information'}
+                {t('medicalInfo')}
               </h3>
               
               <div>
                 <label className="block text-sm font-medium mb-1"
-                       style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
-                  {preferences.language === 'fr' ? 'Groupe sanguin' : 'Blood Type'}
+                       style={{ color: theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                  {t('bloodType')}
                 </label>
                 {isEditing ? (
                   <select
@@ -812,12 +746,12 @@ const PatientProfilePage: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, bloodType: e.target.value })}
                     className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     style={{ 
-                      backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
-                      borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
-                      color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                      backgroundColor: theme === 'light' ? '#ffffff' : '#1e293b',
+                      borderColor: theme === 'light' ? '#d1d5db' : '#475569',
+                      color: theme === 'light' ? '#111827' : '#ffffff'
                     }}
                   >
-                    <option value="">{preferences.language === 'fr' ? 'Non spécifié' : 'Not specified'}</option>
+                    <option value="">{t('notSpecified')}</option>
                     <option value="A+">A+</option>
                     <option value="A-">A-</option>
                     <option value="B+">B+</option>
@@ -828,9 +762,9 @@ const PatientProfilePage: React.FC = () => {
                     <option value="O-">O-</option>
                   </select>
                 ) : (
-                  <p className="flex items-center gap-2" style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>
+                  <p className="flex items-center gap-2" style={{ color: theme === 'light' ? '#111827' : '#ffffff' }}>
                     <Droplets className="w-4 h-4 text-red-400" />
-                    {getBloodTypeLabel(formData.bloodType) || (preferences.language === 'fr' ? 'Non renseigné' : 'Not specified')}
+                    {getBloodTypeLabel(formData.bloodType) || t('notSpecified')}
                   </p>
                 )}
               </div>
@@ -839,20 +773,20 @@ const PatientProfilePage: React.FC = () => {
             {/* Contact d'urgence */}
             <div className="rounded-xl p-6 transition-colors duration-300"
                  style={{ 
-                   backgroundColor: preferences.theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
-                   borderColor: preferences.theme === 'light' ? '#e5e7eb' : '#334155',
+                   backgroundColor: theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
+                   borderColor: theme === 'light' ? '#e5e7eb' : '#334155',
                    borderWidth: '1px'
                  }}>
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Shield className="w-5 h-5 text-orange-400" />
-                {preferences.language === 'fr' ? 'Contact d\'urgence' : 'Emergency Contact'}
+                {t('emergencyContact')}
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1"
-                         style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
-                    {preferences.language === 'fr' ? 'Nom' : 'Name'}
+                         style={{ color: theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                    {t('name')}
                   </label>
                   {isEditing ? (
                     <input
@@ -864,20 +798,20 @@ const PatientProfilePage: React.FC = () => {
                       })}
                       className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       style={{ 
-                        backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
-                        borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
-                        color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                        backgroundColor: theme === 'light' ? '#ffffff' : '#1e293b',
+                        borderColor: theme === 'light' ? '#d1d5db' : '#475569',
+                        color: theme === 'light' ? '#111827' : '#ffffff'
                       }}
                     />
                   ) : (
-                    <p style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>{formData.emergencyContact.name || 'Non renseigné'}</p>
+                    <p style={{ color: theme === 'light' ? '#111827' : '#ffffff' }}>{formData.emergencyContact.name || t('noData')}</p>
                   )}
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium mb-1"
-                         style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
-                    {preferences.language === 'fr' ? 'Téléphone' : 'Phone'}
+                         style={{ color: theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                    {t('phoneNumber')}
                   </label>
                   {isEditing ? (
                     <input
@@ -889,20 +823,20 @@ const PatientProfilePage: React.FC = () => {
                       })}
                       className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       style={{ 
-                        backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
-                        borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
-                        color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                        backgroundColor: theme === 'light' ? '#ffffff' : '#1e293b',
+                        borderColor: theme === 'light' ? '#d1d5db' : '#475569',
+                        color: theme === 'light' ? '#111827' : '#ffffff'
                       }}
                     />
                   ) : (
-                    <p style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>{formData.emergencyContact.phone || 'Non renseigné'}</p>
+                    <p style={{ color: theme === 'light' ? '#111827' : '#ffffff' }}>{formData.emergencyContact.phone || t('noData')}</p>
                   )}
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium mb-1"
-                         style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
-                    {preferences.language === 'fr' ? 'Lien de parenté' : 'Relationship'}
+                         style={{ color: theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                    {t('relationship')}
                   </label>
                   {isEditing ? (
                     <input
@@ -914,13 +848,13 @@ const PatientProfilePage: React.FC = () => {
                       })}
                       className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       style={{ 
-                        backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
-                        borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
-                        color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                        backgroundColor: theme === 'light' ? '#ffffff' : '#1e293b',
+                        borderColor: theme === 'light' ? '#d1d5db' : '#475569',
+                        color: theme === 'light' ? '#111827' : '#ffffff'
                       }}
                     />
                   ) : (
-                    <p style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>{formData.emergencyContact.relationship || 'Non renseigné'}</p>
+                    <p style={{ color: theme === 'light' ? '#111827' : '#ffffff' }}>{formData.emergencyContact.relationship || t('noData')}</p>
                   )}
                 </div>
               </div>
@@ -935,7 +869,7 @@ const PatientProfilePage: React.FC = () => {
                   className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg flex items-center gap-2 transition disabled:opacity-50"
                 >
                   <X className="w-4 h-4" />
-                  {preferences.language === 'fr' ? 'Annuler' : 'Cancel'}
+                  {t('cancel')}
                 </button>
                 <button
                   onClick={handleSaveProfile}
@@ -943,7 +877,7 @@ const PatientProfilePage: React.FC = () => {
                   className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 transition disabled:opacity-50"
                 >
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  {saving ? (preferences.language === 'fr' ? 'Sauvegarde...' : 'Saving...') : (preferences.language === 'fr' ? 'Enregistrer' : 'Save')}
+                  {saving ? t('loading') : t('save')}
                 </button>
               </div>
             )}
@@ -954,20 +888,20 @@ const PatientProfilePage: React.FC = () => {
           <div className="space-y-6">
             <div className="rounded-xl p-6 transition-colors duration-300"
                  style={{ 
-                   backgroundColor: preferences.theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
-                   borderColor: preferences.theme === 'light' ? '#e5e7eb' : '#334155',
+                   backgroundColor: theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
+                   borderColor: theme === 'light' ? '#e5e7eb' : '#334155',
                    borderWidth: '1px'
                  }}>
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Lock className="w-5 h-5 text-blue-400" />
-                {preferences.language === 'fr' ? 'Changer le mot de passe' : 'Change Password'}
+                {t('changePassword')}
               </h3>
               
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-1"
-                         style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
-                    {preferences.language === 'fr' ? 'Mot de passe actuel' : 'Current Password'}
+                         style={{ color: theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                    {t('currentPassword')}
                   </label>
                   <input
                     type="password"
@@ -977,22 +911,20 @@ const PatientProfilePage: React.FC = () => {
                       showPasswordErrors.currentPassword ? 'border-red-500' : ''
                     }`}
                     style={{ 
-                      backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
-                      borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
-                      color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                      backgroundColor: theme === 'light' ? '#ffffff' : '#1e293b',
+                      borderColor: theme === 'light' ? '#d1d5db' : '#475569',
+                      color: theme === 'light' ? '#111827' : '#ffffff'
                     }}
                   />
                   {showPasswordErrors.currentPassword && (
-                    <p className="text-red-400 text-xs mt-1">
-                      {preferences.language === 'fr' ? 'Mot de passe requis' : 'Password required'}
-                    </p>
+                    <p className="text-red-400 text-xs mt-1">{t('required')}</p>
                   )}
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium mb-1"
-                         style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
-                    {preferences.language === 'fr' ? 'Nouveau mot de passe' : 'New Password'}
+                         style={{ color: theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                    {t('newPassword')}
                   </label>
                   <input
                     type="password"
@@ -1002,22 +934,20 @@ const PatientProfilePage: React.FC = () => {
                       showPasswordErrors.newPassword ? 'border-red-500' : ''
                     }`}
                     style={{ 
-                      backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
-                      borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
-                      color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                      backgroundColor: theme === 'light' ? '#ffffff' : '#1e293b',
+                      borderColor: theme === 'light' ? '#d1d5db' : '#475569',
+                      color: theme === 'light' ? '#111827' : '#ffffff'
                     }}
                   />
                   {showPasswordErrors.newPassword && (
-                    <p className="text-red-400 text-xs mt-1">
-                      {preferences.language === 'fr' ? 'Nouveau mot de passe requis' : 'New password required'}
-                    </p>
+                    <p className="text-red-400 text-xs mt-1">{t('required')}</p>
                   )}
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium mb-1"
-                         style={{ color: preferences.theme === 'light' ? '#4b5563' : '#94a3b8' }}>
-                    {preferences.language === 'fr' ? 'Confirmer le mot de passe' : 'Confirm Password'}
+                         style={{ color: theme === 'light' ? '#4b5563' : '#94a3b8' }}>
+                    {t('confirmPassword')}
                   </label>
                   <input
                     type="password"
@@ -1027,15 +957,13 @@ const PatientProfilePage: React.FC = () => {
                       showPasswordErrors.confirmPassword ? 'border-red-500' : ''
                     }`}
                     style={{ 
-                      backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
-                      borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
-                      color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                      backgroundColor: theme === 'light' ? '#ffffff' : '#1e293b',
+                      borderColor: theme === 'light' ? '#d1d5db' : '#475569',
+                      color: theme === 'light' ? '#111827' : '#ffffff'
                     }}
                   />
                   {showPasswordErrors.confirmPassword && (
-                    <p className="text-red-400 text-xs mt-1">
-                      {preferences.language === 'fr' ? 'Confirmation requise' : 'Confirmation required'}
-                    </p>
+                    <p className="text-red-400 text-xs mt-1">{t('required')}</p>
                   )}
                 </div>
                 
@@ -1044,7 +972,7 @@ const PatientProfilePage: React.FC = () => {
                   disabled={saving}
                   className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition disabled:opacity-50"
                 >
-                  {saving ? (preferences.language === 'fr' ? 'Modification...' : 'Changing...') : (preferences.language === 'fr' ? 'Changer le mot de passe' : 'Change Password')}
+                  {saving ? t('loading') : t('changePassword')}
                 </button>
               </div>
             </div>
@@ -1056,34 +984,34 @@ const PatientProfilePage: React.FC = () => {
             {/* Langue */}
             <div className="rounded-xl p-6 transition-colors duration-300"
                  style={{ 
-                   backgroundColor: preferences.theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
-                   borderColor: preferences.theme === 'light' ? '#e5e7eb' : '#334155',
+                   backgroundColor: theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
+                   borderColor: theme === 'light' ? '#e5e7eb' : '#334155',
                    borderWidth: '1px'
                  }}>
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Globe className="w-5 h-5 text-purple-400" />
-                {preferences.language === 'fr' ? 'Langue' : 'Language'}
+                {t('language')}
               </h3>
               
               <div>
                 <select
                   value={preferences.language}
                   onChange={(e) => {
-                    const newLang = e.target.value;
-                    setPreferences({ ...preferences, language: newLang });
-                    applyLanguage(newLang);
+                    setPreferences({ ...preferences, language: e.target.value as any });
                   }}
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   style={{ 
-                    backgroundColor: preferences.theme === 'light' ? '#ffffff' : '#1e293b',
-                    borderColor: preferences.theme === 'light' ? '#d1d5db' : '#475569',
-                    color: preferences.theme === 'light' ? '#111827' : '#ffffff'
+                    backgroundColor: theme === 'light' ? '#ffffff' : '#1e293b',
+                    borderColor: theme === 'light' ? '#d1d5db' : '#475569',
+                    color: theme === 'light' ? '#111827' : '#ffffff'
                   }}
                 >
                   <option value="fr">Français</option>
                   <option value="en">English</option>
                   <option value="es">Español</option>
                   <option value="de">Deutsch</option>
+                  <option value="it">Italiano</option>
+                  <option value="pt">Português</option>
                 </select>
               </div>
             </div>
@@ -1091,20 +1019,20 @@ const PatientProfilePage: React.FC = () => {
             {/* Notifications */}
             <div className="rounded-xl p-6 transition-colors duration-300"
                  style={{ 
-                   backgroundColor: preferences.theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
-                   borderColor: preferences.theme === 'light' ? '#e5e7eb' : '#334155',
+                   backgroundColor: theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
+                   borderColor: theme === 'light' ? '#e5e7eb' : '#334155',
                    borderWidth: '1px'
                  }}>
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Bell className="w-5 h-5 text-yellow-400" />
-                {preferences.language === 'fr' ? 'Notifications' : 'Notifications'}
+                {t('notifications')}
               </h3>
               
               <div className="space-y-3">
                 <label className="flex items-center justify-between p-3 rounded-lg cursor-pointer"
-                       style={{ backgroundColor: preferences.theme === 'light' ? '#f9fafb' : 'rgba(255,255,255,0.05)' }}>
-                  <span style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>
-                    {preferences.language === 'fr' ? 'Notifications par email' : 'Email Notifications'}
+                       style={{ backgroundColor: theme === 'light' ? '#f9fafb' : 'rgba(255,255,255,0.05)' }}>
+                  <span style={{ color: theme === 'light' ? '#111827' : '#ffffff' }}>
+                    {t('emailNotifications')}
                   </span>
                   <div className="relative">
                     <input
@@ -1129,9 +1057,9 @@ const PatientProfilePage: React.FC = () => {
                 </label>
                 
                 <label className="flex items-center justify-between p-3 rounded-lg cursor-pointer"
-                       style={{ backgroundColor: preferences.theme === 'light' ? '#f9fafb' : 'rgba(255,255,255,0.05)' }}>
-                  <span style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>
-                    {preferences.language === 'fr' ? 'Notifications par SMS' : 'SMS Notifications'}
+                       style={{ backgroundColor: theme === 'light' ? '#f9fafb' : 'rgba(255,255,255,0.05)' }}>
+                  <span style={{ color: theme === 'light' ? '#111827' : '#ffffff' }}>
+                    {t('smsNotifications')}
                   </span>
                   <div className="relative">
                     <input
@@ -1156,9 +1084,9 @@ const PatientProfilePage: React.FC = () => {
                 </label>
                 
                 <label className="flex items-center justify-between p-3 rounded-lg cursor-pointer"
-                       style={{ backgroundColor: preferences.theme === 'light' ? '#f9fafb' : 'rgba(255,255,255,0.05)' }}>
-                  <span style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>
-                    {preferences.language === 'fr' ? 'Notifications push' : 'Push Notifications'}
+                       style={{ backgroundColor: theme === 'light' ? '#f9fafb' : 'rgba(255,255,255,0.05)' }}>
+                  <span style={{ color: theme === 'light' ? '#111827' : '#ffffff' }}>
+                    {t('pushNotifications')}
                   </span>
                   <div className="relative">
                     <input
@@ -1187,21 +1115,18 @@ const PatientProfilePage: React.FC = () => {
             {/* Thème */}
             <div className="rounded-xl p-6 transition-colors duration-300"
                  style={{ 
-                   backgroundColor: preferences.theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
-                   borderColor: preferences.theme === 'light' ? '#e5e7eb' : '#334155',
+                   backgroundColor: theme === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
+                   borderColor: theme === 'light' ? '#e5e7eb' : '#334155',
                    borderWidth: '1px'
                  }}>
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Moon className="w-5 h-5 text-indigo-400" />
-                {preferences.language === 'fr' ? 'Thème' : 'Theme'}
+                {t('theme')}
               </h3>
               
               <div className="flex gap-3">
                 <button
-                  onClick={() => {
-                    setPreferences({ ...preferences, theme: 'light' });
-                    applyTheme('light');
-                  }}
+                  onClick={() => setPreferences({ ...preferences, theme: 'light' })}
                   className={`flex-1 p-4 rounded-lg border-2 transition ${
                     preferences.theme === 'light'
                       ? 'border-blue-400 bg-blue-600/20'
@@ -1212,8 +1137,8 @@ const PatientProfilePage: React.FC = () => {
                   }}
                 >
                   <Sun className="w-6 h-6 text-yellow-400 mx-auto mb-2" />
-                  <span style={{ color: preferences.theme === 'light' ? '#111827' : '#ffffff' }}>
-                    {preferences.language === 'fr' ? 'Clair' : 'Light'}
+                  <span style={{ color: theme === 'light' ? '#111827' : '#ffffff' }}>
+                    {t('light')}
                   </span>
                   {preferences.theme === 'light' && (
                     <Check className="w-4 h-4 text-blue-400 mx-auto mt-2" />
@@ -1221,10 +1146,7 @@ const PatientProfilePage: React.FC = () => {
                 </button>
                 
                 <button
-                  onClick={() => {
-                    setPreferences({ ...preferences, theme: 'dark' });
-                    applyTheme('dark');
-                  }}
+                  onClick={() => setPreferences({ ...preferences, theme: 'dark' })}
                   className={`flex-1 p-4 rounded-lg border-2 transition ${
                     preferences.theme === 'dark'
                       ? 'border-blue-400 bg-blue-600/20'
@@ -1235,8 +1157,8 @@ const PatientProfilePage: React.FC = () => {
                   }}
                 >
                   <Moon className="w-6 h-6 text-indigo-400 mx-auto mb-2" />
-                  <span style={{ color: preferences.theme === 'dark' ? '#ffffff' : '#111827' }}>
-                    {preferences.language === 'fr' ? 'Sombre' : 'Dark'}
+                  <span style={{ color: theme === 'dark' ? '#ffffff' : '#111827' }}>
+                    {t('dark')}
                   </span>
                   {preferences.theme === 'dark' && (
                     <Check className="w-4 h-4 text-blue-400 mx-auto mt-2" />
@@ -1253,7 +1175,7 @@ const PatientProfilePage: React.FC = () => {
                 className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 transition disabled:opacity-50"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                {saving ? (preferences.language === 'fr' ? 'Sauvegarde...' : 'Saving...') : (preferences.language === 'fr' ? 'Enregistrer les préférences' : 'Save Preferences')}
+                {saving ? t('loading') : t('save')}
               </button>
             </div>
           </div>
