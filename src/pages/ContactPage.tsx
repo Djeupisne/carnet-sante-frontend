@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom'; // ✅ AJOUTEZ CETTE LIGNE
 import { useForm, ValidationError } from '@formspree/react';
 import { Send, CheckCircle2, AlertCircle, User, Mail, Phone, MessageSquare } from 'lucide-react';
 
@@ -160,7 +161,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ className = '' }) => {
         )}
       </button>
 
-      {/* Mention légale */}
+      {/* Mention légale - MAINTENANT AVEC LINK IMPORTÉ */}
       <p className="text-xs text-gray-400 text-center mt-4">
         En soumettant ce formulaire, vous acceptez que vos données soient traitées conformément à notre 
         <Link to="/privacy" className="text-blue-600 hover:underline mx-1">
