@@ -1,21 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  CreditCard, 
-  ArrowLeft, 
-  CheckCircle2, 
-  Sparkles,
-  Users,
-  Building,
-  HeartPulse
-} from 'lucide-react';
+import { CreditCard, ArrowLeft, CheckCircle2, HelpCircle, Sparkles } from 'lucide-react';
 
 const PricingPage: React.FC = () => {
   const plans = [
     {
       name: "Patient",
-      price: "Gratuit",
-      description: "Pour les patients qui souhaitent gérer leur santé",
+      price: "0 €",
+      description: "Pour les patients",
       features: [
         "Gestion des rendez-vous",
         "Dossier médical personnel",
@@ -23,14 +15,17 @@ const PricingPage: React.FC = () => {
         "Historique des consultations",
         "Téléconsultation"
       ],
-      color: "from-blue-500 to-cyan-500",
-      icon: <HeartPulse className="w-8 h-8" />
+      color: "from-blue-500 to-blue-600",
+      bgColor: "bg-blue-50",
+      borderColor: "border-blue-200",
+      buttonColor: "bg-blue-600 hover:bg-blue-700",
+      popular: false
     },
     {
       name: "Médecin",
-      price: "49€",
+      price: "49 €",
       period: "/mois",
-      description: "Pour les professionnels de santé",
+      description: "Pour les professionnels",
       features: [
         "Gestion des patients",
         "Calendrier personnalisé",
@@ -39,60 +34,60 @@ const PricingPage: React.FC = () => {
         "Statistiques détaillées",
         "Support prioritaire"
       ],
-      color: "from-purple-500 to-pink-500",
-      icon: <Users className="w-8 h-8" />,
+      color: "from-purple-500 to-purple-600",
+      bgColor: "bg-purple-50",
+      borderColor: "border-purple-200",
+      buttonColor: "bg-purple-600 hover:bg-purple-700",
       popular: true
     },
     {
       name: "Établissement",
       price: "Sur devis",
-      description: "Pour les cliniques et hôpitaux",
+      description: "Pour cliniques et hôpitaux",
       features: [
         "Multi-utilisateurs",
         "API dédiée",
-        "Personnalisation complète",
+        "Personnalisation",
         "Support 24/7",
         "Formation incluse",
         "SLA garantie"
       ],
-      color: "from-emerald-500 to-teal-500",
-      icon: <Building className="w-8 h-8" />
+      color: "from-emerald-500 to-emerald-600",
+      bgColor: "bg-emerald-50",
+      borderColor: "border-emerald-200",
+      buttonColor: "bg-emerald-600 hover:bg-emerald-700",
+      popular: false
     }
   ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/20">
-      <nav className="glass sticky top-0 z-50 border-b border-white/20 shadow-sm">
+      <nav className="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            <Link to="/" className="flex items-center space-x-3 group">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-emerald-500 rounded-2xl blur-xl opacity-60 group-hover:opacity-100"></div>
-                <div className="relative bg-gradient-to-br from-blue-500 via-cyan-500 to-emerald-500 p-3 rounded-2xl shadow-lg">
-                  <CreditCard className="w-6 h-6 text-white" />
-                </div>
+          <div className="flex justify-between items-center h-16">
+            <Link to="/" className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-emerald-600 rounded-lg flex items-center justify-center">
+                <CreditCard className="w-4 h-4 text-white" />
               </div>
-              <h1 className="text-2xl font-black bg-gradient-to-r from-blue-600 via-cyan-600 to-emerald-600 bg-clip-text text-transparent">
-                Tarifs
-              </h1>
+              <span className="font-bold text-gray-900">Carnet Santé</span>
             </Link>
             <Link
               to="/"
-              className="flex items-center gap-2 px-4 py-2 text-slate-700 hover:text-blue-600 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors text-sm"
             >
               <ArrowLeft className="w-4 h-4" />
-              Retour à l'accueil
+              Retour
             </Link>
           </div>
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center mb-16">
-          <h1 className="text-5xl md:text-6xl font-black text-slate-900 mb-6">
-            Des tarifs adaptés à vos besoins
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="text-center mb-12">
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            Tarifs adaptés à vos besoins
           </h1>
-          <p className="text-xl text-slate-600 max-w-3xl mx-auto">
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Choisissez la formule qui vous convient, sans engagement
           </p>
         </div>
@@ -101,55 +96,59 @@ const PricingPage: React.FC = () => {
           {plans.map((plan, index) => (
             <div
               key={index}
-              className={`relative glass rounded-3xl p-8 border border-white/50 hover:shadow-2xl transition-all hover:-translate-y-2 ${
-                plan.popular ? 'border-2 border-blue-400 shadow-xl' : ''
+              className={`bg-white rounded-2xl shadow-lg border-2 relative ${
+                plan.popular ? 'border-purple-400' : 'border-gray-200'
               }`}
             >
               {plan.popular && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-1 rounded-full text-sm font-semibold">
-                  <Sparkles className="w-4 h-4 inline mr-1" />
-                  Le plus populaire
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-1 rounded-full text-sm font-semibold flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" />
+                  Recommandé
                 </div>
               )}
               
-              <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${plan.color} p-4 mb-6 shadow-lg`}>
-                <div className="text-white">
-                  {plan.icon}
+              <div className="p-6">
+                <div className={`w-12 h-12 ${plan.bgColor} rounded-xl flex items-center justify-center mb-4`}>
+                  <div className={`bg-gradient-to-r ${plan.color} bg-clip-text text-transparent font-bold text-xl`}>
+                    {plan.name[0]}
+                  </div>
                 </div>
+
+                <h3 className="text-xl font-bold text-gray-900 mb-2">{plan.name}</h3>
+                <div className="mb-4">
+                  <span className="text-3xl font-bold text-gray-900">{plan.price}</span>
+                  {plan.period && <span className="text-gray-500 text-sm ml-1">{plan.period}</span>}
+                </div>
+                <p className="text-gray-600 text-sm mb-6">{plan.description}</p>
+
+                <ul className="space-y-3 mb-6">
+                  {plan.features.map((feature, idx) => (
+                    <li key={idx} className="flex items-start gap-2 text-sm">
+                      <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+                      <span className="text-gray-600">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <Link
+                  to={plan.name === "Patient" ? "/register" : "/contact"}
+                  className={`block w-full text-center py-3 ${plan.buttonColor} text-white rounded-xl font-semibold transition-all hover:shadow-lg`}
+                >
+                  {plan.name === "Patient" ? "Commencer gratuitement" : "Nous contacter"}
+                </Link>
               </div>
-
-              <h3 className="text-2xl font-bold text-slate-900 mb-2">{plan.name}</h3>
-              <div className="mb-4">
-                <span className="text-4xl font-black text-slate-900">{plan.price}</span>
-                {plan.period && <span className="text-slate-500">{plan.period}</span>}
-              </div>
-              <p className="text-slate-600 mb-6">{plan.description}</p>
-
-              <ul className="space-y-3 mb-8">
-                {plan.features.map((feature, idx) => (
-                  <li key={idx} className="flex items-start gap-2">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                    <span className="text-slate-600">{feature}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <Link
-                to={plan.name === "Patient" ? "/register" : "/contact"}
-                className={`block w-full text-center py-3 rounded-xl font-bold transition-all ${
-                  plan.popular
-                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-lg hover:scale-105'
-                    : 'glass border-2 border-slate-200 text-slate-700 hover:border-blue-400 hover:text-blue-600'
-                }`}
-              >
-                {plan.name === "Patient" ? "Commencer gratuitement" : "Nous contacter"}
-              </Link>
             </div>
           ))}
         </div>
 
-        <div className="mt-12 text-center text-slate-500 text-sm">
-          * Tous les prix sont HT. Une facture sera fournie après chaque paiement.
+        <div className="mt-8 text-center">
+          <p className="text-sm text-gray-500">
+            * Tous les prix sont HT. Une facture sera fournie après chaque paiement.
+          </p>
+          <Link to="/faq" className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline mt-4">
+            <HelpCircle className="w-4 h-4" />
+            Questions fréquentes sur les tarifs
+          </Link>
         </div>
       </div>
     </div>
