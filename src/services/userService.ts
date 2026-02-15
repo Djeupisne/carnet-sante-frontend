@@ -1,5 +1,5 @@
 /** ============================================
- * src/services/userService.ts - CORRIGÉ
+ * src/services/userService.ts - CORRIGÉ COMPLET
  * ============================================ */
 import api from '../types/api'
 import { User } from '../types'
@@ -13,6 +13,17 @@ interface PaginatedResponse<T = any> {
     total: number
     totalPages: number
   }
+}
+
+// Interface pour les préférences utilisateur
+export interface UserPreferences {
+  language: string;
+  theme: 'light' | 'dark';
+  notifications: {
+    email: boolean;
+    sms: boolean;
+    push: boolean;
+  };
 }
 
 export const userService = {
@@ -129,7 +140,7 @@ export const userService = {
     }
   },
 
-  // ✅ NOUVELLE MÉTHODE: Récupérer un utilisateur par son ID
+  // ✅ Récupérer un utilisateur par son ID
   async getUserById(userId: string): Promise<User> {
     try {
       console.log(`👤 Récupération de l'utilisateur ${userId}...`);
@@ -137,7 +148,6 @@ export const userService = {
       
       console.log('✅ Réponse getUserById:', response.data);
       
-      // La réponse peut être directement l'utilisateur ou { success, data }
       if (response.data && response.data.success && response.data.data) {
         return response.data.data;
       } else if (response.data && response.data.id) {
@@ -153,19 +163,17 @@ export const userService = {
     }
   },
 
-  // ✅ OPTIONNEL: Récupérer plusieurs utilisateurs par leurs IDs
+  // ✅ Récupérer plusieurs utilisateurs par leurs IDs
   async getUsersByIds(userIds: string[]): Promise<User[]> {
     try {
       console.log(`👥 Récupération de ${userIds.length} utilisateurs...`);
       
-      // Si votre backend supporte une requête batch
       const response = await api.post('/users/batch', { userIds });
       
       if (response.data && response.data.success && response.data.data) {
         return response.data.data;
       }
       
-      // Fallback: récupérer un par un (moins efficace)
       const users: User[] = [];
       for (const id of userIds) {
         try {
@@ -180,7 +188,6 @@ export const userService = {
     } catch (error: any) {
       console.error('❌ Erreur dans getUsersByIds:', error.response?.data || error.message);
       
-      // Fallback en cas d'erreur
       const users: User[] = [];
       for (const id of userIds) {
         try {
@@ -194,4 +201,149 @@ export const userService = {
       return users;
     }
   },
+
+  // ✅ NOUVELLE MÉTHODE: Mettre à jour les préférences utilisateur
+  async updatePreferences(preferences: UserPreferences): Promise<{ success: boolean; data: User }> {
+    try {
+      console.log('⚙️ Mise à jour des préférences utilisateur...');
+      const response = await api.patch('/profile/preferences', { preferences });
+      console.log('✅ Préférences mises à jour:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Erreur dans updatePreferences:', error.response?.data || error.message);
+      throw new Error(
+        error.response?.data?.message || 'Erreur lors de la mise à jour des préférences'
+      );
+    }
+  },
+
+  // ✅ NOUVELLE MÉTHODE: Récupérer les préférences utilisateur
+  async getPreferences(): Promise<{ success: boolean; data: UserPreferences }> {
+    try {
+      console.log('⚙️ Récupération des préférences utilisateur...');
+      const response = await api.get('/profile/preferences');
+      console.log('✅ Préférences récupérées:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Erreur dans getPreferences:', error.response?.data || error.message);
+      throw new Error(
+        error.response?.data?.message || 'Erreur lors de la récupération des préférences'
+      );
+    }
+  },
+
+  // ✅ NOUVELLE MÉTHODE: Mettre à jour la photo de profil
+  async updateProfilePicture(formData: FormData): Promise<{ success: boolean; data: { profilePicture: string } }> {
+    try {
+      console.log('📸 Mise à jour de la photo de profil...');
+      const response = await api.post('/profile/picture', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      console.log('✅ Photo de profil mise à jour:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Erreur dans updateProfilePicture:', error.response?.data || error.message);
+      throw new Error(
+        error.response?.data?.message || 'Erreur lors de la mise à jour de la photo'
+      );
+    }
+  },
+
+  // ✅ NOUVELLE MÉTHODE: Supprimer la photo de profil
+  async deleteProfilePicture(): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log('🗑️ Suppression de la photo de profil...');
+      const response = await api.delete('/profile/picture');
+      console.log('✅ Photo de profil supprimée:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Erreur dans deleteProfilePicture:', error.response?.data || error.message);
+      throw new Error(
+        error.response?.data?.message || 'Erreur lors de la suppression de la photo'
+      );
+    }
+  },
+
+  // ✅ NOUVELLE MÉTHODE: Récupérer les informations de contact d'urgence
+  async getEmergencyContact(): Promise<{ success: boolean; data: any }> {
+    try {
+      console.log('📞 Récupération du contact d\'urgence...');
+      const response = await api.get('/profile/emergency-contact');
+      console.log('✅ Contact d\'urgence récupéré:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Erreur dans getEmergencyContact:', error.response?.data || error.message);
+      throw new Error(
+        error.response?.data?.message || 'Erreur lors de la récupération du contact d\'urgence'
+      );
+    }
+  },
+
+  // ✅ NOUVELLE MÉTHODE: Mettre à jour le contact d'urgence
+  async updateEmergencyContact(data: {
+    name: string;
+    phone: string;
+    relationship: string;
+  }): Promise<{ success: boolean; data: User }> {
+    try {
+      console.log('📞 Mise à jour du contact d\'urgence...');
+      const response = await api.put('/profile/emergency-contact', data);
+      console.log('✅ Contact d\'urgence mis à jour:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Erreur dans updateEmergencyContact:', error.response?.data || error.message);
+      throw new Error(
+        error.response?.data?.message || 'Erreur lors de la mise à jour du contact d\'urgence'
+      );
+    }
+  },
+
+  // ✅ NOUVELLE MÉTHODE: Récupérer l'historique des connexions
+  async getLoginHistory(): Promise<{ success: boolean; data: any[] }> {
+    try {
+      console.log('📊 Récupération de l\'historique des connexions...');
+      const response = await api.get('/profile/login-history');
+      console.log('✅ Historique des connexions récupéré:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Erreur dans getLoginHistory:', error.response?.data || error.message);
+      throw new Error(
+        error.response?.data?.message || 'Erreur lors de la récupération de l\'historique'
+      );
+    }
+  },
+
+  // ✅ NOUVELLE MÉTHODE: Désactiver le compte
+  async deactivateAccount(): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log('⚠️ Désactivation du compte...');
+      const response = await api.post('/profile/deactivate');
+      console.log('✅ Compte désactivé:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Erreur dans deactivateAccount:', error.response?.data || error.message);
+      throw new Error(
+        error.response?.data?.message || 'Erreur lors de la désactivation du compte'
+      );
+    }
+  },
+
+  // ✅ NOUVELLE MÉTHODE: Exporter les données personnelles
+  async exportPersonalData(): Promise<Blob> {
+    try {
+      console.log('📦 Export des données personnelles...');
+      const response = await api.get('/profile/export-data', {
+        responseType: 'blob'
+      });
+      console.log('✅ Données exportées');
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Erreur dans exportPersonalData:', error.response?.data || error.message);
+      throw new Error(
+        error.response?.data?.message || 'Erreur lors de l\'export des données'
+      );
+    }
+  }
 }
