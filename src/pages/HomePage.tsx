@@ -91,13 +91,61 @@ const HomePage: React.FC = () => {
     'Gratuit pour commencer'
   ]
 
+  // Générer 150 gouttes de pluie (plus nombreuses et visibles)
+  const raindrops = Array.from({ length: 150 }, (_, i) => ({
+    id: i,
+    left: Math.random() * 100,
+    animationDuration: 0.3 + Math.random() * 0.7,
+    animationDelay: Math.random() * 5,
+    opacity: 0.3 + Math.random() * 0.5
+  }))
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-purple-900 to-pink-900 relative overflow-hidden">
+      {/* EFFET DE PLUIE - Version très visible */}
+      <div className="fixed inset-0 pointer-events-none z-[100] overflow-hidden">
+        {raindrops.map((drop) => (
+          <div
+            key={drop.id}
+            className="absolute top-[-100px]"
+            style={{
+              left: `${drop.left}%`,
+              animation: `rainFall ${drop.animationDuration}s linear infinite`,
+              animationDelay: `${drop.animationDelay}s`,
+              opacity: drop.opacity,
+              width: '3px',
+              height: '80px',
+              background: 'linear-gradient(to bottom, transparent, rgba(139, 192, 255, 0.8), rgba(59, 130, 246, 0.9), transparent)',
+              borderRadius: '50px',
+              boxShadow: '0 0 8px rgba(59, 130, 246, 0.5)',
+            }}
+          />
+        ))}
+      </div>
+
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
         
         * {
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        /* Animation de la pluie */
+        @keyframes rainFall {
+          0% {
+            transform: translateY(0) translateX(0);
+            opacity: 0;
+          }
+          10% {
+            opacity: 1;
+          }
+          90% {
+            opacity: 1;
+          }
+          100% {
+            transform: translateY(100vh) translateX(20px);
+            opacity: 0;
+          }
         }
 
         @keyframes float {
@@ -162,7 +210,7 @@ const HomePage: React.FC = () => {
       `}</style>
 
       {/* Navigation avec glassmorphism amélioré */}
-      <nav className="backdrop-blur-xl bg-white/70 sticky top-0 z-50 border-b border-white/50 shadow-lg shadow-slate-200/50">
+      <nav className="backdrop-blur-xl bg-white/10 sticky top-0 z-50 border-b border-white/20 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             {/* Logo */}
@@ -174,22 +222,22 @@ const HomePage: React.FC = () => {
                 </div>
               </div>
               <div>
-                <h1 className="text-xl font-black tracking-tight bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                <h1 className="text-xl font-black tracking-tight text-white">
                   NEXUS HEALTH
                 </h1>
-                <p className="text-xs text-slate-500 font-semibold">Votre santé connectée</p>
+                <p className="text-xs text-white/70 font-semibold">Votre santé connectée</p>
               </div>
             </Link>
 
             {/* Navigation desktop */}
             <div className="hidden md:flex items-center space-x-6">
-              <a href="#features" className="text-slate-700 hover:text-blue-600 transition-colors font-semibold text-sm">
+              <a href="#features" className="text-white/80 hover:text-white transition-colors font-semibold text-sm">
                 Fonctionnalités
               </a>
-              <a href="#stats" className="text-slate-700 hover:text-blue-600 transition-colors font-semibold text-sm">
+              <a href="#stats" className="text-white/80 hover:text-white transition-colors font-semibold text-sm">
                 Statistiques
               </a>
-              <a href="#contact" className="text-slate-700 hover:text-blue-600 transition-colors font-semibold text-sm">
+              <a href="#contact" className="text-white/80 hover:text-white transition-colors font-semibold text-sm">
                 Contact
               </a>
             </div>
@@ -198,12 +246,12 @@ const HomePage: React.FC = () => {
             <div className="hidden md:flex items-center space-x-3">
               {isAuthenticated ? (
                 <>
-                  <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 rounded-xl border border-emerald-200/50">
+                  <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/20 rounded-xl border border-emerald-400/30">
                     <span className="relative flex h-2.5 w-2.5">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400"></span>
                     </span>
-                    <span className="text-sm font-bold text-slate-700">
+                    <span className="text-sm font-bold text-white">
                       {user?.firstName}
                     </span>
                   </div>
@@ -219,7 +267,7 @@ const HomePage: React.FC = () => {
                 <>
                   <Link
                     to="/login"
-                    className="text-slate-700 hover:text-blue-600 px-5 py-2 rounded-xl text-sm font-bold transition-all hover:bg-white/70"
+                    className="text-white/90 hover:text-white px-5 py-2 rounded-xl text-sm font-bold transition-all hover:bg-white/10"
                   >
                     Connexion
                   </Link>
@@ -236,32 +284,32 @@ const HomePage: React.FC = () => {
             {/* Menu mobile */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-xl hover:bg-white/50 transition-colors"
+              className="md:hidden p-2 rounded-xl hover:bg-white/10 transition-colors"
             >
               {mobileMenuOpen ? (
-                <X className="w-6 h-6 text-slate-700" />
+                <X className="w-6 h-6 text-white" />
               ) : (
-                <Menu className="w-6 h-6 text-slate-700" />
+                <Menu className="w-6 h-6 text-white" />
               )}
             </button>
           </div>
 
           {/* Menu mobile déroulant */}
           {mobileMenuOpen && (
-            <div className="md:hidden py-4 border-t border-white/50">
+            <div className="md:hidden py-4 border-t border-white/20">
               <div className="flex flex-col space-y-3">
-                <a href="#features" className="text-slate-700 hover:text-blue-600 transition-colors font-semibold px-4 py-2 rounded-xl hover:bg-white/50">
+                <a href="#features" className="text-white/80 hover:text-white transition-colors font-semibold px-4 py-2 rounded-xl hover:bg-white/10">
                   Fonctionnalités
                 </a>
-                <a href="#stats" className="text-slate-700 hover:text-blue-600 transition-colors font-semibold px-4 py-2 rounded-xl hover:bg-white/50">
+                <a href="#stats" className="text-white/80 hover:text-white transition-colors font-semibold px-4 py-2 rounded-xl hover:bg-white/10">
                   Statistiques
                 </a>
-                <a href="#contact" className="text-slate-700 hover:text-blue-600 transition-colors font-semibold px-4 py-2 rounded-xl hover:bg-white/50">
+                <a href="#contact" className="text-white/80 hover:text-white transition-colors font-semibold px-4 py-2 rounded-xl hover:bg-white/10">
                   Contact
                 </a>
                 {!isAuthenticated && (
                   <>
-                    <Link to="/login" className="text-slate-700 font-bold px-4 py-2 rounded-xl hover:bg-white/50 transition-all">
+                    <Link to="/login" className="text-white font-bold px-4 py-2 rounded-xl hover:bg-white/10 transition-all">
                       Connexion
                     </Link>
                     <Link to="/register" className="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white font-bold px-4 py-2 rounded-xl text-center">
@@ -275,27 +323,27 @@ const HomePage: React.FC = () => {
         </div>
       </nav>
 
-      {/* Hero Section avec animations améliorées */}
+      {/* Hero Section */}
       <div className="relative overflow-hidden">
         {/* Blobs animés */}
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-20 left-10 w-96 h-96 bg-gradient-to-br from-blue-400/20 to-cyan-400/20 rounded-full blur-3xl animate-float" 
+          <div className="absolute top-20 left-10 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-float" 
                style={{ animationDelay: '0s' }}></div>
-          <div className="absolute top-40 right-10 w-80 h-80 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full blur-3xl animate-float" 
+          <div className="absolute top-40 right-10 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl animate-float" 
                style={{ animationDelay: '2s' }}></div>
-          <div className="absolute bottom-20 left-1/3 w-72 h-72 bg-gradient-to-br from-emerald-400/20 to-teal-400/20 rounded-full blur-3xl animate-float" 
+          <div className="absolute bottom-20 left-1/3 w-72 h-72 bg-pink-500/20 rounded-full blur-3xl animate-float" 
                style={{ animationDelay: '4s' }}></div>
         </div>
         
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 relative z-10">
           <div className="text-center max-w-5xl mx-auto">
             {/* Badge */}
             <div 
-              className={`inline-flex items-center gap-2 backdrop-blur-xl bg-white/80 px-5 py-2.5 rounded-full text-sm font-bold mb-8 border border-blue-200/50 shadow-lg ${isVisible ? 'animate-slide-up' : 'opacity-0'}`}
+              className={`inline-flex items-center gap-2 backdrop-blur-xl bg-white/10 px-5 py-2.5 rounded-full text-sm font-bold mb-8 border border-white/20 shadow-lg ${isVisible ? 'animate-slide-up' : 'opacity-0'}`}
               style={{ animationDelay: '0ms' }}
             >
-              <Sparkles className="w-4 h-4 text-blue-600" />
-              <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+              <Sparkles className="w-4 h-4 text-blue-300" />
+              <span className="text-white">
                 Plateforme de santé #1 en Afrique
               </span>
             </div>
@@ -303,20 +351,16 @@ const HomePage: React.FC = () => {
             {/* Titre principal */}
             <h1 className={`text-5xl md:text-7xl lg:text-8xl font-black mb-8 leading-tight ${isVisible ? 'animate-slide-up' : 'opacity-0'}`}
                 style={{ animationDelay: '100ms' }}>
-              <span className="block mb-3">
-                <span className="text-slate-900">
-                  Votre santé,
-                </span>
+              <span className="block mb-3 text-white">
+                Votre santé,
               </span>
-              <span className="block">
-                <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  simplifiée
-                </span>
+              <span className="block bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                simplifiée
               </span>
             </h1>
 
             {/* Description */}
-            <p className={`text-xl md:text-2xl text-slate-600 mb-12 max-w-3xl mx-auto leading-relaxed font-medium ${isVisible ? 'animate-slide-up' : 'opacity-0'}`}
+            <p className={`text-xl md:text-2xl text-white/80 mb-12 max-w-3xl mx-auto leading-relaxed font-medium ${isVisible ? 'animate-slide-up' : 'opacity-0'}`}
                style={{ animationDelay: '200ms' }}>
               Gérez vos rendez-vous médicaux, consultez votre dossier de santé et 
               suivez votre parcours médical en toute simplicité.
@@ -336,7 +380,7 @@ const HomePage: React.FC = () => {
                   </Link>
                   <Link
                     to="/login"
-                    className="group inline-flex items-center justify-center gap-2 px-8 py-4 backdrop-blur-xl bg-white/80 text-slate-700 rounded-2xl text-lg font-black border-2 border-white hover:border-blue-400 hover:text-blue-600 transition-all hover:shadow-xl"
+                    className="group inline-flex items-center justify-center gap-2 px-8 py-4 backdrop-blur-xl bg-white/10 text-white rounded-2xl text-lg font-black border-2 border-white/20 hover:border-white/40 hover:bg-white/20 transition-all hover:shadow-xl"
                   >
                     <span>Se connecter</span>
                   </Link>
@@ -356,9 +400,9 @@ const HomePage: React.FC = () => {
             <div className={`flex flex-wrap justify-center gap-4 mb-20 ${isVisible ? 'animate-fade-in' : 'opacity-0'}`}
                  style={{ animationDelay: '400ms' }}>
               {benefits.map((benefit, index) => (
-                <div key={index} className="flex items-center gap-2 backdrop-blur-xl bg-white/80 px-4 py-2.5 rounded-full border border-white shadow-lg">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                  <span className="text-sm font-bold text-slate-700">{benefit}</span>
+                <div key={index} className="flex items-center gap-2 backdrop-blur-xl bg-white/10 px-4 py-2.5 rounded-full border border-white/20 shadow-lg">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span className="text-sm font-bold text-white">{benefit}</span>
                 </div>
               ))}
             </div>
@@ -368,16 +412,16 @@ const HomePage: React.FC = () => {
               {stats.map((stat, index) => (
                 <div 
                   key={index} 
-                  className={`backdrop-blur-xl bg-white/80 p-6 rounded-2xl border border-white shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 group ${isVisible ? 'animate-slide-up' : 'opacity-0'}`}
+                  className={`backdrop-blur-xl bg-white/10 p-6 rounded-2xl border border-white/20 shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 group ${isVisible ? 'animate-slide-up' : 'opacity-0'}`}
                   style={{ animationDelay: `${500 + index * 100}ms` }}
                 >
-                  <div className="text-blue-600 mb-3 flex justify-center opacity-70 group-hover:opacity-100 transition-opacity group-hover:scale-110 transform duration-300">
+                  <div className="text-blue-400 mb-3 flex justify-center opacity-70 group-hover:opacity-100 transition-opacity group-hover:scale-110 transform duration-300">
                     {stat.icon}
                   </div>
-                  <div className="text-3xl md:text-4xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-1">
+                  <div className="text-3xl md:text-4xl font-black text-white mb-1">
                     {stat.value}
                   </div>
-                  <div className="text-sm font-bold text-slate-600">{stat.label}</div>
+                  <div className="text-sm font-bold text-white/70">{stat.label}</div>
                 </div>
               ))}
             </div>
@@ -386,18 +430,18 @@ const HomePage: React.FC = () => {
       </div>
 
       {/* Features Section */}
-      <div id="features" className="py-24 relative">
+      <div id="features" className="py-24 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <div className="inline-block mb-4">
-              <span className="backdrop-blur-xl bg-white/80 px-5 py-2.5 rounded-full text-sm font-black text-blue-600 border border-blue-200/50 shadow-lg">
+              <span className="backdrop-blur-xl bg-white/10 px-5 py-2.5 rounded-full text-sm font-black text-white border border-white/20 shadow-lg">
                 Fonctionnalités
               </span>
             </div>
-            <h2 className="text-4xl md:text-6xl font-black text-slate-900 mb-6">
+            <h2 className="text-4xl md:text-6xl font-black text-white mb-6">
               Tout ce dont vous avez besoin
             </h2>
-            <p className="text-xl text-slate-600 max-w-2xl mx-auto font-semibold">
+            <p className="text-xl text-white/70 max-w-2xl mx-auto font-semibold">
               Une plateforme complète et intuitive pour gérer votre santé
             </p>
           </div>
@@ -406,7 +450,7 @@ const HomePage: React.FC = () => {
             {features.map((feature, index) => (
               <div
                 key={index}
-                className="feature-card group backdrop-blur-xl bg-white/80 rounded-3xl p-8 border border-white shadow-xl hover:shadow-2xl"
+                className="feature-card group backdrop-blur-xl bg-white/10 rounded-3xl p-8 border border-white/20 shadow-xl hover:shadow-2xl"
                 style={{ animationDelay: feature.delay }}
               >
                 {/* Icône */}
@@ -419,15 +463,15 @@ const HomePage: React.FC = () => {
                   </div>
                 </div>
 
-                <h3 className="text-xl font-black text-slate-900 mb-3 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text transition-all">
+                <h3 className="text-xl font-black text-white mb-3 group-hover:text-blue-300 transition-colors">
                   {feature.title}
                 </h3>
-                <p className="text-slate-600 leading-relaxed mb-4 font-semibold text-sm">
+                <p className="text-white/70 leading-relaxed mb-4 font-semibold text-sm">
                   {feature.description}
                 </p>
 
                 {/* Lien */}
-                <div className="flex items-center text-sm font-black text-slate-400 group-hover:text-blue-600 transition-colors">
+                <div className="flex items-center text-sm font-black text-white/50 group-hover:text-blue-300 transition-colors">
                   <span>En savoir plus</span>
                   <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-2 transition-transform" />
                 </div>
@@ -438,7 +482,7 @@ const HomePage: React.FC = () => {
       </div>
 
       {/* Section CTA */}
-      <div className="relative py-24 overflow-hidden">
+      <div className="relative py-24 overflow-hidden z-10">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600">
           <div className="absolute top-10 left-10 w-96 h-96 bg-white/10 rounded-full blur-3xl animate-float"></div>
           <div className="absolute bottom-10 right-10 w-80 h-80 bg-white/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '3s' }}></div>
@@ -465,7 +509,7 @@ const HomePage: React.FC = () => {
       </div>
 
       {/* Footer */}
-      <footer id="contact" className="bg-slate-900 text-white py-20">
+      <footer id="contact" className="bg-slate-950/50 backdrop-blur-xl text-white py-20 relative z-10 border-t border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
             {/* Logo */}
@@ -476,7 +520,7 @@ const HomePage: React.FC = () => {
                 </div>
                 <h3 className="text-xl font-black">NEXUS HEALTH</h3>
               </div>
-              <p className="text-slate-400 text-sm leading-relaxed font-semibold mb-6">
+              <p className="text-white/60 text-sm leading-relaxed font-semibold mb-6">
                 Votre partenaire santé au quotidien. Une solution moderne et sécurisée.
               </p>
               <div className="flex gap-3">
@@ -496,10 +540,10 @@ const HomePage: React.FC = () => {
             <div>
               <h4 className="text-lg font-black mb-4">Produit</h4>
               <ul className="space-y-3">
-                <li><a href="/features" className="text-slate-400 hover:text-white transition font-semibold text-sm">Fonctionnalités</a></li>
-                <li><a href="/pricing" className="text-slate-400 hover:text-white transition font-semibold text-sm">Tarifs</a></li>
-                <li><a href="/faq" className="text-slate-400 hover:text-white transition font-semibold text-sm">FAQ</a></li>
-                <li><a href="/docs" className="text-slate-400 hover:text-white transition font-semibold text-sm">Documentation</a></li>
+                <li><a href="/features" className="text-white/60 hover:text-white transition font-semibold text-sm">Fonctionnalités</a></li>
+                <li><a href="/pricing" className="text-white/60 hover:text-white transition font-semibold text-sm">Tarifs</a></li>
+                <li><a href="/faq" className="text-white/60 hover:text-white transition font-semibold text-sm">FAQ</a></li>
+                <li><a href="/docs" className="text-white/60 hover:text-white transition font-semibold text-sm">Documentation</a></li>
               </ul>
             </div>
 
@@ -507,9 +551,9 @@ const HomePage: React.FC = () => {
             <div>
               <h4 className="text-lg font-black mb-4">Légal</h4>
               <ul className="space-y-3">
-                <li><a href="/privacy" className="text-slate-400 hover:text-white transition font-semibold text-sm">Confidentialité</a></li>
-                <li><a href="/terms" className="text-slate-400 hover:text-white transition font-semibold text-sm">Conditions</a></li>
-                <li><a href="/legal" className="text-slate-400 hover:text-white transition font-semibold text-sm">Mentions légales</a></li>
+                <li><a href="/privacy" className="text-white/60 hover:text-white transition font-semibold text-sm">Confidentialité</a></li>
+                <li><a href="/terms" className="text-white/60 hover:text-white transition font-semibold text-sm">Conditions</a></li>
+                <li><a href="/legal" className="text-white/60 hover:text-white transition font-semibold text-sm">Mentions légales</a></li>
               </ul>
             </div>
 
@@ -517,19 +561,19 @@ const HomePage: React.FC = () => {
             <div>
               <h4 className="text-lg font-black mb-4">Contact</h4>
               <ul className="space-y-3">
-                <li className="text-slate-400 font-semibold text-sm">oualoumidjeupisne@gmail.com</li>
-                <li className="text-slate-400 font-semibold text-sm">+228 93 36 01 50</li>
-                <li className="text-slate-400 font-semibold text-sm">Lomé, Togo</li>
+                <li className="text-white/60 font-semibold text-sm">oualoumidjeupisne@gmail.com</li>
+                <li className="text-white/60 font-semibold text-sm">+228 93 36 01 50</li>
+                <li className="text-white/60 font-semibold text-sm">Lomé, Togo</li>
               </ul>
             </div>
           </div>
 
-          <div className="border-t border-slate-800 pt-8">
-            <div className="flex flex-col md:flex-row justify-between items-center text-slate-500 text-sm">
+          <div className="border-t border-white/10 pt-8">
+            <div className="flex flex-col md:flex-row justify-between items-center text-white/50 text-sm">
               <p className="font-bold">© 2026 NEXUS HEALTH. Tous droits réservés.</p>
               <div className="flex items-center gap-2 mt-4 md:mt-0">
-                <Shield className="w-4 h-4 text-emerald-500" />
-                <span className="text-slate-400 font-bold">Sécurisé et confidentiel</span>
+                <Shield className="w-4 h-4 text-emerald-400" />
+                <span className="text-white/60 font-bold">Sécurisé et confidentiel</span>
               </div>
             </div>
           </div>
