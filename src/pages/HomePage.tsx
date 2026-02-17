@@ -91,81 +91,13 @@ const HomePage: React.FC = () => {
     'Gratuit pour commencer'
   ]
 
-  // Générer les gouttes de pluie
-  const raindrops = Array.from({ length: 50 }, (_, i) => ({
-    id: i,
-    left: Math.random() * 100,
-    animationDuration: 0.5 + Math.random() * 0.5,
-    animationDelay: Math.random() * 2,
-    opacity: 0.1 + Math.random() * 0.3
-  }))
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20 relative overflow-hidden">
-      {/* Effet de pluie */}
-      <div className="fixed inset-0 pointer-events-none z-[1]">
-        {raindrops.map((drop) => (
-          <div
-            key={drop.id}
-            className="raindrop"
-            style={{
-              left: `${drop.left}%`,
-              animationDuration: `${drop.animationDuration}s`,
-              animationDelay: `${drop.animationDelay}s`,
-              opacity: drop.opacity
-            }}
-          />
-        ))}
-      </div>
-
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
         
         * {
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        }
-
-        /* Effet de pluie */
-        .raindrop {
-          position: absolute;
-          width: 2px;
-          height: 50px;
-          background: linear-gradient(to bottom, transparent, rgba(59, 130, 246, 0.5), transparent);
-          animation: fall linear infinite;
-          top: -50px;
-        }
-
-        @keyframes fall {
-          to {
-            transform: translateY(100vh);
-          }
-        }
-
-        /* Effet de vague d'eau */
-        .raindrop::after {
-          content: '';
-          position: absolute;
-          bottom: -10px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 4px;
-          height: 4px;
-          background: rgba(59, 130, 246, 0.3);
-          border-radius: 50%;
-          animation: ripple 1s ease-out infinite;
-        }
-
-        @keyframes ripple {
-          0% {
-            width: 4px;
-            height: 4px;
-            opacity: 1;
-          }
-          100% {
-            width: 20px;
-            height: 20px;
-            opacity: 0;
-          }
         }
 
         @keyframes float {
@@ -355,7 +287,7 @@ const HomePage: React.FC = () => {
                style={{ animationDelay: '4s' }}></div>
         </div>
         
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 relative">
           <div className="text-center max-w-5xl mx-auto">
             {/* Badge */}
             <div 
@@ -454,7 +386,7 @@ const HomePage: React.FC = () => {
       </div>
 
       {/* Features Section */}
-      <div id="features" className="py-24 relative z-10">
+      <div id="features" className="py-24 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <div className="inline-block mb-4">
@@ -506,7 +438,7 @@ const HomePage: React.FC = () => {
       </div>
 
       {/* Section CTA */}
-      <div className="relative py-24 overflow-hidden z-10">
+      <div className="relative py-24 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600">
           <div className="absolute top-10 left-10 w-96 h-96 bg-white/10 rounded-full blur-3xl animate-float"></div>
           <div className="absolute bottom-10 right-10 w-80 h-80 bg-white/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '3s' }}></div>
@@ -533,7 +465,7 @@ const HomePage: React.FC = () => {
       </div>
 
       {/* Footer */}
-      <footer id="contact" className="bg-slate-900 text-white py-20 relative z-10">
+      <footer id="contact" className="bg-slate-900 text-white py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
             {/* Logo */}
