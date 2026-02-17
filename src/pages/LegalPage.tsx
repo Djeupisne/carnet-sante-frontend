@@ -87,8 +87,8 @@ const LegalPage: React.FC = () => {
             </h2>
             <address className="not-italic text-gray-600 leading-relaxed">
               123 Avenue de la Santé<br />
-              75001 Paris<br />
-              France
+              75001 Lomé<br />
+              Togo
             </address>
           </div>
 
@@ -99,15 +99,15 @@ const LegalPage: React.FC = () => {
               Contact
             </h2>
             <div className="space-y-3">
-              <a href="mailto:contact@carnetsante.com" 
+              <a href="mailto:oualoumidjeupisne@gmail.com" 
                  className="flex items-center gap-3 p-3 bg-white rounded-lg hover:shadow-md transition">
                 <Mail className="w-5 h-5 text-gray-400" />
-                <span className="text-gray-600">contact@carnetsante.com</span>
+                <span className="text-gray-600">oualoumidjeupisne@gmail.com</span>
               </a>
-              <a href="tel:+33123456789" 
+              <a href="tel:+22893360150" 
                  className="flex items-center gap-3 p-3 bg-white rounded-lg hover:shadow-md transition">
                 <Phone className="w-5 h-5 text-gray-400" />
-                <span className="text-gray-600">+33 1 23 45 67 89</span>
+                <span className="text-gray-600">+228 93 36 01 50</span>
               </a>
             </div>
           </div>
