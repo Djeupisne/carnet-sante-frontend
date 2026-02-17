@@ -63,7 +63,6 @@ const Register: React.FC = () => {
       const today = new Date()
       let age = today.getFullYear() - birthDate.getFullYear()
       
-      // Ajuster l'âge si l'anniversaire n'est pas encore passé cette année
       const monthDiff = today.getMonth() - birthDate.getMonth()
       if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
         age--
@@ -71,7 +70,6 @@ const Register: React.FC = () => {
       
       console.log(`📅 Âge calculé: ${age} ans (date: ${formData.dateOfBirth})`)
       
-      // ✅ CORRIGÉ : 16 ans minimum (au lieu de 18) pour tests
       if (age < 16) {
         newErrors.dateOfBirth = `Vous devez avoir au moins 16 ans (actuellement: ${age} ans)`
       } else if (age > 120) {
@@ -100,19 +98,16 @@ const Register: React.FC = () => {
     if (formData.role === 'doctor') {
       console.log('🔍 Validation des champs médecin...')
       
-      // Validation spécialité
       if (!formData.specialty.trim()) {
         newErrors.specialty = 'La spécialité est requise'
       }
 
-      // Validation numéro de licence
       if (!formData.licenseNumber.trim()) {
         newErrors.licenseNumber = 'Le numéro de licence est requis'
       } else if (formData.licenseNumber.trim().length < 3) {
         newErrors.licenseNumber = 'Le numéro de licence doit contenir au moins 3 caractères'
       }
 
-      // ✅ CORRIGÉ : Validation améliorée de la biographie
       if (!formData.biography.trim()) {
         newErrors.biography = 'La biographie est requise'
       } else {
@@ -125,7 +120,6 @@ const Register: React.FC = () => {
         }
       }
 
-      // Validation langues
       if (formData.languages.length === 0) {
         newErrors.languages = 'Au moins une langue doit être spécifiée'
       }
@@ -196,7 +190,6 @@ const Register: React.FC = () => {
     setIsLoading(true)
     
     try {
-      // ✅ CORRIGÉ : Préparer les données pour l'API
       const submitData: any = {
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
@@ -207,7 +200,6 @@ const Register: React.FC = () => {
         gender: formData.gender,
       }
 
-      // ✅ CORRIGÉ : Ajouter les champs optionnels seulement s'ils ont une valeur
       if (formData.phoneNumber.trim()) {
         submitData.phoneNumber = formData.phoneNumber.trim()
       }
@@ -216,14 +208,12 @@ const Register: React.FC = () => {
         submitData.bloodType = formData.bloodType
       }
 
-      // ✅ CORRIGÉ : Pour les médecins, envoyer les champs spécifiques
       if (formData.role === 'doctor') {
         submitData.specialty = formData.specialty.trim()
         submitData.licenseNumber = formData.licenseNumber.trim()
         submitData.biography = formData.biography.trim()
         submitData.languages = formData.languages
         
-        // Logs détaillés pour débogage
         console.log('🔍 Validation finale des données médecin:')
         console.log('- Spécialité:', submitData.specialty, 'longueur:', submitData.specialty.length)
         console.log('- License:', submitData.licenseNumber, 'longueur:', submitData.licenseNumber.length)
@@ -232,9 +222,6 @@ const Register: React.FC = () => {
       }
 
       console.log('🔍 Données envoyées à l\'API:', JSON.stringify(submitData, null, 2))
-      console.log('🔍 Langues:', submitData.languages)
-      console.log('🔍 Spécialité:', submitData.specialty)
-      console.log('🔍 Groupe sanguin:', submitData.bloodType)
       
       await register(submitData)
       showNotification('Compte créé avec succès!', 'success')
@@ -245,7 +232,6 @@ const Register: React.FC = () => {
         const apiErrors = error.response.data.errors
         const fieldErrors: Record<string, string> = {}
         
-        // ✅ CORRIGÉ : Gestion améliorée des erreurs
         if (Array.isArray(apiErrors)) {
           apiErrors.forEach((err: any) => {
             if (err.field) {
@@ -270,7 +256,6 @@ const Register: React.FC = () => {
 
   const getMaxBirthDate = () => {
     const today = new Date()
-    // ✅ CORRIGÉ : 16 ans minimum (au lieu de 18) pour tests
     const maxDate = new Date(today.getFullYear() - 16, today.getMonth(), today.getDate())
     return maxDate.toISOString().split('T')[0]
   }
@@ -282,185 +267,208 @@ const Register: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-2xl w-full space-y-8">
-        <div className="text-center">
-          <div 
-            className="flex items-center justify-center space-x-3 mb-8 cursor-pointer"
-            onClick={() => navigate('/')}
-          >
-            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-lg">⚕️</span>
-            </div>
-            <h1 className="text-3xl font-black gradient-text">
-              NEXUS HEALTH
-            </h1>
-          </div>
-          <h2 className="text-3xl font-extrabold text-white">
-            Créer un compte
-          </h2>
-          <p className="mt-2 text-sm text-white/60">
-            Ou{' '}
-            <button
-              onClick={() => navigate('/login')}
-              className="font-medium text-blue-400 hover:text-blue-300 transition"
+    <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-purple-900 to-pink-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse delay-700"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse delay-1000"></div>
+      </div>
+
+      <div className="max-w-2xl w-full relative z-10">
+        {/* Glass Card */}
+        <div className="backdrop-blur-xl bg-white/10 rounded-3xl shadow-2xl border border-white/20 p-8 md:p-10">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div 
+              className="inline-flex items-center justify-center space-x-2 mb-6 cursor-pointer group"
+              onClick={() => navigate('/')}
             >
-              connectez-vous à votre compte existant
-            </button>
-          </p>
-        </div>
-        
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit} noValidate>
-          <div className="futuristic-card p-8 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="firstName" className="block text-sm font-medium text-white/80 mb-2">
-                  Prénom *
-                </label>
-                <input
-                  id="firstName"
-                  name="firstName"
-                  type="text"
-                  required
-                  value={formData.firstName}
-                  onChange={handleChange}
-                  className={`futuristic-card w-full px-3 py-3 text-white bg-white/5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    errors.firstName ? 'border-red-500/50' : 'border-white/10'
-                  }`}
-                  placeholder="Votre prénom"
-                />
-                {errors.firstName && (
-                  <p className="mt-1 text-sm text-red-400">{errors.firstName}</p>
-                )}
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg transform group-hover:scale-105 transition-transform">
+                <span className="text-2xl">⚕️</span>
               </div>
-              
-              <div>
-                <label htmlFor="lastName" className="block text-sm font-medium text-white/80 mb-2">
-                  Nom *
-                </label>
-                <input
-                  id="lastName"
-                  name="lastName"
-                  type="text"
-                  required
-                  value={formData.lastName}
-                  onChange={handleChange}
-                  className={`futuristic-card w-full px-3 py-3 text-white bg-white/5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    errors.lastName ? 'border-red-500/50' : 'border-white/10'
-                  }`}
-                  placeholder="Votre nom"
-                />
-                {errors.lastName && (
-                  <p className="mt-1 text-sm text-red-400">{errors.lastName}</p>
-                )}
-              </div>
+              <h1 className="text-2xl font-black bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                NEXUS HEALTH
+              </h1>
             </div>
+            <h2 className="text-3xl font-bold text-white mb-2">
+              Créer un compte
+            </h2>
+            <p className="text-white/70 text-sm">
+              Rejoignez notre plateforme de santé connectée
+            </p>
+          </div>
+          
+          {/* Form */}
+          <form onSubmit={handleSubmit} noValidate className="space-y-6">
+            {/* Informations personnelles */}
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="firstName" className="block text-sm font-semibold text-white/90 mb-2">
+                    Prénom *
+                  </label>
+                  <input
+                    id="firstName"
+                    name="firstName"
+                    type="text"
+                    required
+                    value={formData.firstName}
+                    onChange={handleChange}
+                    className={`w-full px-4 py-3 text-white bg-white/5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all placeholder-white/40 ${
+                      errors.firstName ? 'border-red-500/70 ring-2 ring-red-500/30' : 'border-white/20'
+                    }`}
+                    placeholder="Votre prénom"
+                  />
+                  {errors.firstName && (
+                    <p className="mt-1.5 text-xs text-red-300 flex items-center">
+                      <span className="mr-1">⚠</span> {errors.firstName}
+                    </p>
+                  )}
+                </div>
+                
+                <div>
+                  <label htmlFor="lastName" className="block text-sm font-semibold text-white/90 mb-2">
+                    Nom *
+                  </label>
+                  <input
+                    id="lastName"
+                    name="lastName"
+                    type="text"
+                    required
+                    value={formData.lastName}
+                    onChange={handleChange}
+                    className={`w-full px-4 py-3 text-white bg-white/5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all placeholder-white/40 ${
+                      errors.lastName ? 'border-red-500/70 ring-2 ring-red-500/30' : 'border-white/20'
+                    }`}
+                    placeholder="Votre nom"
+                  />
+                  {errors.lastName && (
+                    <p className="mt-1.5 text-xs text-red-300 flex items-center">
+                      <span className="mr-1">⚠</span> {errors.lastName}
+                    </p>
+                  )}
+                </div>
+              </div>
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-white/80 mb-2">
-                Email *
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                value={formData.email}
-                onChange={handleChange}
-                className={`futuristic-card w-full px-3 py-3 text-white bg-white/5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.email ? 'border-red-500/50' : 'border-white/10'
-                }`}
-                placeholder="adresse@exemple.com"
-                autoComplete="email"
-              />
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-400">{errors.email}</p>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label htmlFor="dateOfBirth" className="block text-sm font-medium text-white/80 mb-2">
-                  Date de naissance *
+                <label htmlFor="email" className="block text-sm font-semibold text-white/90 mb-2">
+                  Adresse email *
                 </label>
                 <input
-                  id="dateOfBirth"
-                  name="dateOfBirth"
-                  type="date"
+                  id="email"
+                  name="email"
+                  type="email"
                   required
-                  value={formData.dateOfBirth}
+                  value={formData.email}
                   onChange={handleChange}
-                  min={getMinBirthDate()}
-                  max={getMaxBirthDate()}
-                  className={`futuristic-card w-full px-3 py-3 text-white bg-white/5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    errors.dateOfBirth ? 'border-red-500/50' : 'border-white/10'
+                  className={`w-full px-4 py-3 text-white bg-white/5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all placeholder-white/40 ${
+                    errors.email ? 'border-red-500/70 ring-2 ring-red-500/30' : 'border-white/20'
                   }`}
+                  placeholder="vous@exemple.com"
+                  autoComplete="email"
                 />
-                {errors.dateOfBirth && (
-                  <p className="mt-1 text-sm text-red-400">{errors.dateOfBirth}</p>
+                {errors.email && (
+                  <p className="mt-1.5 text-xs text-red-300 flex items-center">
+                    <span className="mr-1">⚠</span> {errors.email}
+                  </p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="dateOfBirth" className="block text-sm font-semibold text-white/90 mb-2">
+                    Date de naissance *
+                  </label>
+                  <input
+                    id="dateOfBirth"
+                    name="dateOfBirth"
+                    type="date"
+                    required
+                    value={formData.dateOfBirth}
+                    onChange={handleChange}
+                    min={getMinBirthDate()}
+                    max={getMaxBirthDate()}
+                    className={`w-full px-4 py-3 text-white bg-white/5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all ${
+                      errors.dateOfBirth ? 'border-red-500/70 ring-2 ring-red-500/30' : 'border-white/20'
+                    }`}
+                  />
+                  {errors.dateOfBirth && (
+                    <p className="mt-1.5 text-xs text-red-300 flex items-center">
+                      <span className="mr-1">⚠</span> {errors.dateOfBirth}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="gender" className="block text-sm font-semibold text-white/90 mb-2">
+                    Genre *
+                  </label>
+                  <select
+                    id="gender"
+                    name="gender"
+                    required
+                    value={formData.gender}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 text-white bg-white/5 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all"
+                  >
+                    <option value="male" className="bg-gray-800">Homme</option>
+                    <option value="female" className="bg-gray-800">Femme</option>
+                    <option value="other" className="bg-gray-800">Autre</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="phoneNumber" className="block text-sm font-semibold text-white/90 mb-2">
+                  Téléphone
+                </label>
+                <input
+                  id="phoneNumber"
+                  name="phoneNumber"
+                  type="tel"
+                  value={formData.phoneNumber}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-3 text-white bg-white/5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all placeholder-white/40 ${
+                    errors.phoneNumber ? 'border-red-500/70 ring-2 ring-red-500/30' : 'border-white/20'
+                  }`}
+                  placeholder="+33 1 23 45 67 89"
+                />
+                {errors.phoneNumber && (
+                  <p className="mt-1.5 text-xs text-red-300 flex items-center">
+                    <span className="mr-1">⚠</span> {errors.phoneNumber}
+                  </p>
                 )}
               </div>
 
               <div>
-                <label htmlFor="gender" className="block text-sm font-medium text-white/80 mb-2">
-                  Genre *
+                <label htmlFor="role" className="block text-sm font-semibold text-white/90 mb-2">
+                  Je suis *
                 </label>
                 <select
-                  id="gender"
-                  name="gender"
+                  id="role"
+                  name="role"
                   required
-                  value={formData.gender}
+                  value={formData.role}
                   onChange={handleChange}
-                  className="futuristic-card w-full px-3 py-3 text-white bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 text-white bg-white/5 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all"
                 >
-                  <option value="male">Homme</option>
-                  <option value="female">Femme</option>
-                  <option value="other">Autre</option>
+                  <option value="patient" className="bg-gray-800">Patient</option>
+                  <option value="doctor" className="bg-gray-800">Médecin</option>
                 </select>
               </div>
             </div>
 
-            <div>
-              <label htmlFor="phoneNumber" className="block text-sm font-medium text-white/80 mb-2">
-                Téléphone
-              </label>
-              <input
-                id="phoneNumber"
-                name="phoneNumber"
-                type="tel"
-                value={formData.phoneNumber}
-                onChange={handleChange}
-                className={`futuristic-card w-full px-3 py-3 text-white bg-white/5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    errors.phoneNumber ? 'border-red-500/50' : 'border-white/10'
-                  }`}
-                placeholder="+33 1 23 45 67 89"
-              />
-              {errors.phoneNumber && (
-                <p className="mt-1 text-sm text-red-400">{errors.phoneNumber}</p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="role" className="block text-sm font-medium text-white/80 mb-2">
-                Je suis *
-              </label>
-              <select
-                id="role"
-                name="role"
-                required
-                value={formData.role}
-                onChange={handleChange}
-                className="futuristic-card w-full px-3 py-3 text-white bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="patient">Patient</option>
-                <option value="doctor">Médecin</option>
-              </select>
-            </div>
-
+            {/* Champs médecin */}
             {formData.role === 'doctor' && (
-              <>
+              <div className="space-y-5 pt-4 border-t border-white/10">
+                <h3 className="text-lg font-semibold text-white/90 flex items-center">
+                  <span className="mr-2">👨‍⚕️</span>
+                  Informations professionnelles
+                </h3>
+
                 <div>
-                  <label htmlFor="specialty" className="block text-sm font-medium text-white/80 mb-2">
+                  <label htmlFor="specialty" className="block text-sm font-semibold text-white/90 mb-2">
                     Spécialité médicale *
                   </label>
                   <input
@@ -470,18 +478,20 @@ const Register: React.FC = () => {
                     required
                     value={formData.specialty}
                     onChange={handleChange}
-                    className={`futuristic-card w-full px-3 py-3 text-white bg-white/5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors.specialty ? 'border-red-500/50' : 'border-white/10'
+                    className={`w-full px-4 py-3 text-white bg-white/5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all placeholder-white/40 ${
+                      errors.specialty ? 'border-red-500/70 ring-2 ring-red-500/30' : 'border-white/20'
                     }`}
-                    placeholder="Ex: Cardiologie, Pédiatrie, etc."
+                    placeholder="Ex: Cardiologie, Pédiatrie..."
                   />
                   {errors.specialty && (
-                    <p className="mt-1 text-sm text-red-400">{errors.specialty}</p>
+                    <p className="mt-1.5 text-xs text-red-300 flex items-center">
+                      <span className="mr-1">⚠</span> {errors.specialty}
+                    </p>
                   )}
                 </div>
 
                 <div>
-                  <label htmlFor="licenseNumber" className="block text-sm font-medium text-white/80 mb-2">
+                  <label htmlFor="licenseNumber" className="block text-sm font-semibold text-white/90 mb-2">
                     Numéro de licence médicale *
                   </label>
                   <input
@@ -491,35 +501,37 @@ const Register: React.FC = () => {
                     required
                     value={formData.licenseNumber}
                     onChange={handleChange}
-                    className={`futuristic-card w-full px-3 py-3 text-white bg-white/5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors.licenseNumber ? 'border-red-500/50' : 'border-white/10'
+                    className={`w-full px-4 py-3 text-white bg-white/5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all placeholder-white/40 ${
+                      errors.licenseNumber ? 'border-red-500/70 ring-2 ring-red-500/30' : 'border-white/20'
                     }`}
                     placeholder="Votre numéro de licence"
                   />
                   {errors.licenseNumber && (
-                    <p className="mt-1 text-sm text-red-400">{errors.licenseNumber}</p>
+                    <p className="mt-1.5 text-xs text-red-300 flex items-center">
+                      <span className="mr-1">⚠</span> {errors.licenseNumber}
+                    </p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-white/80 mb-2">
+                  <label className="block text-sm font-semibold text-white/90 mb-2">
                     Langues parlées *
                   </label>
-                  <div className="flex gap-2 mb-2">
+                  <div className="flex gap-2 mb-3">
                     <input
                       type="text"
                       value={currentLanguage}
                       onChange={(e) => setCurrentLanguage(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleLanguageAdd())}
-                      className="futuristic-card flex-1 px-3 py-2 text-white bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Ajouter une langue (ex: Français)"
+                      className="flex-1 px-4 py-2.5 text-white bg-white/5 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all placeholder-white/40"
+                      placeholder="Ex: Français, Anglais..."
                     />
                     <button
                       type="button"
                       onClick={handleLanguageAdd}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition"
+                      className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-medium rounded-xl hover:shadow-lg hover:shadow-purple-500/30 transition-all transform hover:scale-105"
                     >
-                      Ajouter
+                      +
                     </button>
                   </div>
                   
@@ -528,13 +540,13 @@ const Register: React.FC = () => {
                       {formData.languages.map((language, index) => (
                         <span
                           key={index}
-                          className="inline-flex items-center px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-sm"
+                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-purple-400/30 text-purple-200 text-sm font-medium"
                         >
                           {language}
                           <button
                             type="button"
                             onClick={() => handleLanguageRemove(language)}
-                            className="ml-2 text-red-400 hover:text-red-300"
+                            className="text-red-300 hover:text-red-200 font-bold"
                           >
                             ×
                           </button>
@@ -544,12 +556,14 @@ const Register: React.FC = () => {
                   )}
                   
                   {errors.languages && (
-                    <p className="mt-1 text-sm text-red-400">{errors.languages}</p>
+                    <p className="mt-1.5 text-xs text-red-300 flex items-center">
+                      <span className="mr-1">⚠</span> {errors.languages}
+                    </p>
                   )}
                 </div>
 
                 <div>
-                  <label htmlFor="biography" className="block text-sm font-medium text-white/80 mb-2">
+                  <label htmlFor="biography" className="block text-sm font-semibold text-white/90 mb-2">
                     Biographie professionnelle *
                   </label>
                   <textarea
@@ -559,27 +573,32 @@ const Register: React.FC = () => {
                     value={formData.biography}
                     onChange={handleChange}
                     rows={4}
-                    className={`futuristic-card w-full px-3 py-3 text-white bg-white/5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors.biography ? 'border-red-500/50' : 'border-white/10'
+                    className={`w-full px-4 py-3 text-white bg-white/5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all placeholder-white/40 resize-none ${
+                      errors.biography ? 'border-red-500/70 ring-2 ring-red-500/30' : 'border-white/20'
                     }`}
                     placeholder="Décrivez votre parcours professionnel, vos compétences et votre expérience..."
                   />
                   {errors.biography && (
-                    <p className="mt-1 text-sm text-red-400">{errors.biography}</p>
+                    <p className="mt-1.5 text-xs text-red-300 flex items-center">
+                      <span className="mr-1">⚠</span> {errors.biography}
+                    </p>
                   )}
-                  {/* ✅ CORRIGÉ : Afficher la longueur nettoyée */}
-                  <p className="mt-1 text-sm text-white/60">
+                  <p className="mt-1.5 text-xs text-white/50">
                     {formData.biography.trim().length}/50 caractères minimum
                   </p>
                 </div>
-              </>
+              </div>
             )}
 
-            <div className="border-t border-white/10 pt-6">
-              <h3 className="text-lg font-medium text-white/80 mb-4">Informations complémentaires (optionnelles)</h3>
+            {/* Informations complémentaires */}
+            <div className="space-y-5 pt-4 border-t border-white/10">
+              <h3 className="text-lg font-semibold text-white/90">
+                Informations complémentaires
+                <span className="text-sm font-normal text-white/50 ml-2">(optionnel)</span>
+              </h3>
               
-              <div className="mb-4">
-                <label htmlFor="bloodType" className="block text-sm font-medium text-white/80 mb-2">
+              <div>
+                <label htmlFor="bloodType" className="block text-sm font-semibold text-white/90 mb-2">
                   Groupe sanguin
                 </label>
                 <select
@@ -587,28 +606,31 @@ const Register: React.FC = () => {
                   name="bloodType"
                   value={formData.bloodType}
                   onChange={handleChange}
-                  className={`futuristic-card w-full px-3 py-3 text-white bg-white/5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    errors.bloodType ? 'border-red-500/50' : 'border-white/10'
+                  className={`w-full px-4 py-3 text-white bg-white/5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all ${
+                    errors.bloodType ? 'border-red-500/70 ring-2 ring-red-500/30' : 'border-white/20'
                   }`}
                 >
-                  <option value="">Sélectionnez votre groupe sanguin</option>
-                  <option value="A+">A+</option>
-                  <option value="A-">A-</option>
-                  <option value="B+">B+</option>
-                  <option value="B-">B-</option>
-                  <option value="AB+">AB+</option>
-                  <option value="AB-">AB-</option>
-                  <option value="O+">O+</option>
-                  <option value="O-">O-</option>
+                  <option value="" className="bg-gray-800">Sélectionnez votre groupe sanguin</option>
+                  <option value="A+" className="bg-gray-800">A+</option>
+                  <option value="A-" className="bg-gray-800">A-</option>
+                  <option value="B+" className="bg-gray-800">B+</option>
+                  <option value="B-" className="bg-gray-800">B-</option>
+                  <option value="AB+" className="bg-gray-800">AB+</option>
+                  <option value="AB-" className="bg-gray-800">AB-</option>
+                  <option value="O+" className="bg-gray-800">O+</option>
+                  <option value="O-" className="bg-gray-800">O-</option>
                 </select>
                 {errors.bloodType && (
-                  <p className="mt-1 text-sm text-red-400">{errors.bloodType}</p>
+                  <p className="mt-1.5 text-xs text-red-300 flex items-center">
+                    <span className="mr-1">⚠</span> {errors.bloodType}
+                  </p>
                 )}
               </div>
             </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-white/80 mb-2">
+            {/* Mot de passe */}
+            <div className="pt-4 border-t border-white/10">
+              <label htmlFor="password" className="block text-sm font-semibold text-white/90 mb-2">
                 Mot de passe *
               </label>
               <input
@@ -618,43 +640,65 @@ const Register: React.FC = () => {
                 required
                 value={formData.password}
                 onChange={handleChange}
-                className={`futuristic-card w-full px-3 py-3 text-white bg-white/5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.password ? 'border-red-500/50' : 'border-white/10'
+                className={`w-full px-4 py-3 text-white bg-white/5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all placeholder-white/40 ${
+                  errors.password ? 'border-red-500/70 ring-2 ring-red-500/30' : 'border-white/20'
                 }`}
-                placeholder="Au moins 6 caractères"
+                placeholder="Minimum 6 caractères"
                 autoComplete="new-password"
               />
               {errors.password && (
-                <p className="mt-1 text-sm text-red-400">{errors.password}</p>
+                <p className="mt-1.5 text-xs text-red-300 flex items-center">
+                  <span className="mr-1">⚠</span> {errors.password}
+                </p>
               )}
             </div>
-          </div>
 
-          <div className="flex flex-col space-y-4">
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="futuristic-btn w-full flex justify-center py-3 px-4 text-sm font-medium rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Création du compte...
-                </>
-              ) : (
-                "Créer mon compte"
-              )}
-            </button>
+            {/* Boutons */}
+            <div className="flex flex-col gap-3 pt-4">
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white font-semibold py-3.5 px-4 rounded-xl hover:shadow-lg hover:shadow-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+              >
+                {isLoading ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-2"></div>
+                    <span>Création du compte...</span>
+                  </div>
+                ) : (
+                  'Créer mon compte'
+                )}
+              </button>
 
-            <button
-              type="button"
-              onClick={() => navigate('/')}
-              className="futuristic-btn-secondary w-full py-3"
-            >
-              ← Retour à l'accueil
-            </button>
-          </div>
-        </form>
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/20"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-4 bg-transparent text-white/60">Vous avez déjà un compte ?</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => navigate('/login')}
+                className="w-full backdrop-blur-sm bg-white/5 hover:bg-white/10 border border-white/20 text-white font-medium py-3 px-4 rounded-xl transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+              >
+                Se connecter
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* Back button */}
+        <div className="mt-6">
+          <button
+            onClick={() => navigate('/')}
+            className="w-full backdrop-blur-sm bg-white/5 hover:bg-white/10 border border-white/20 text-white font-medium py-3 px-4 rounded-xl transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+          >
+            ← Retour à l'accueil
+          </button>
+        </div>
       </div>
     </div>
   )
