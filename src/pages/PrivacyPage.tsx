@@ -147,7 +147,7 @@ const PrivacyPage: React.FC = () => {
           <div className="mt-8 pt-8 border-t border-gray-200">
             <p className="text-sm text-gray-500">
               Pour toute question concernant cette politique, contactez notre délégué à la protection des données : 
-              <a href="mailto:dpo@carnetsante.com" className="text-blue-600 hover:underline ml-1">
+              <a href="mailto:oualoumidjeupisne@gmail.com" className="text-blue-600 hover:underline ml-1">
                 dpo@carnetsante.com
               </a>
             </p>
