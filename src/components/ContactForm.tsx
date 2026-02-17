@@ -92,7 +92,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ className = '' }) => {
             onChange={handleChange}
             required
             className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all hover:border-gray-300 text-gray-900 placeholder-gray-400"
-            placeholder="Jean Dupont"
+            placeholder="Oualoumi Abanet"
           />
         </div>
         <ValidationError 
@@ -126,7 +126,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ className = '' }) => {
             onChange={handleChange}
             required
             className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all hover:border-gray-300 text-gray-900 placeholder-gray-400"
-            placeholder="jean.dupont@email.com"
+            placeholder="oualoumiabanet@gmail.com"
           />
         </div>
         <ValidationError 
@@ -159,7 +159,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ className = '' }) => {
             value={formValues.phone}
             onChange={handleChange}
             className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all hover:border-gray-300 text-gray-900 placeholder-gray-400"
-            placeholder="+33 6 12 34 56 78"
+            placeholder="+228 93 36 01 50"
           />
         </div>
       </div>
